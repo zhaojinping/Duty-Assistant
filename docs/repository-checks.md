@@ -32,7 +32,7 @@ python scripts/install_hooks.py
 ## 边界（如实声明）
 
 - 秘密扫描主体 gitleaks：本地钩子只扫暂存增量，提交历史由 CI 全量兜底；两者口径同源（`gitleaks.toml`）。扫描器缺失或不可执行时钩子 fail-closed（拒绝提交），不是悄悄放行。
-- 本地钩子仍可被 `--no-verify` 跳过——客户端钩子原理上无强制力。真正的合并约束在服务端：`main` 已启用分支保护（要求 `repo-check` 通过、禁止强推与删除分支），绕过钩子的提交进不了 `main`，或进了也会被 CI gitleaks 岗当场判红。主控保留 `gh pr merge --admin` 作为最后逃生口，用一次少一次。
+- 本地钩子仍可被 `--no-verify` 跳过——客户端钩子原理上无强制力。GitHub free 计划暂无分支保护，服务端约束靠 CI gitleaks 全量扫描兜底，绕过钩子的提交也会被 CI 岗判红。人工审批（主控审核后才合并）是主要约束。主控保留直推 `main` 权限作为最后逃生口。
 - CI 与钩子都是保守检查，不能替代人工看 diff；发现泄漏按密钥已泄漏处理（立即吊销轮换，而非删除提交了事——历史里删不掉）。
 
 CI 在 Windows 与 Ubuntu 上跑 Python 3.11/3.12。第三方 Action 钉 SHA。
