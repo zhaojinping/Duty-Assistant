@@ -1,0 +1,67 @@
+# 保护投退记录簿声明草案（M2 前置 · 批2/3 · flat，§13 拍板一行一动作）
+# 依据：docs/dsl-gap-list.md 定稿 §9 + §13 拍板（flat + T3 pairing 复合键）
+# 规则段 TODO 占位——待 M1 引擎接口冻结后转正；格式基准 docs/dsl/README.md
+# 注：复合列"装置及功能"按定稿 GAP-H3/E3 拆分为 device_id + function
+
+[meta]
+record_type = "protection_switch_record"
+title = "保护投退记录簿"
+schema_version = "1.5"
+layout = "flat"                     # §13 拍板：一行=一动作，投/退跨记录配对
+dedupe_key = ["station", "occurred_minute", "device_id", "function", "action"]
+link_types = []
+extra = "reject"
+signature_slots = ["操作人", "监护人"]
+action_codes = ["WARN_SWITCH_DANGLING", "WARN_SWITCH_REOCCUPY", "WARN_RECOVER_OVERDUE"]
+escalate_after = 3
+
+[[fields]]
+key = "device_id"
+name = "装置"
+type = "text"
+required = true                     # pairing 复合键成员 1
+
+[[fields]]
+key = "function"
+name = "功能"
+type = "text"
+required = true                     # pairing 复合键成员 2；模板括号"重合闸/主保护等"为开放集合，
+                                    # enum 化待现场钉死选项集后改声明（只改声明，引擎零改动）
+
+[[fields]]
+key = "action"
+name = "投/退"
+type = "enum"
+options = ["投", "退"]              # 模板括号自带；pairing 类型判别
+required = true
+
+[[fields]]
+key = "reason"
+name = "原因"
+type = "text"
+required = true
+
+[[fields]]
+key = "dispatch_order_no"
+name = "调度令号"
+type = "text"
+required = false
+
+[[fields]]
+key = "restored_at"
+name = "恢复时间"
+type = "datetime"
+required = false                    # 条件必填（退行必填于恢复时/投行恒空，GAP-H1）——
+                                    # required_when 语义待 M1 信封接口定稿后启用
+
+# ---- 规则段（TODO：待 M1 引擎接口冻结后补）----
+# TODO rules:
+#   - id: switch_pairing
+#     kind: pairing / tier: 3
+#     expr: pairing:protection,key=[device_id,function]   # 复合键（§13 拍板为数组）、重复占用告警（算子已有）
+#   - id: recover_in_time
+#     kind: recovery_within / tier: 3
+#     expr: recovery_within:Nd                           # 恢复时限 Nd 待现场（依赖 restored_at 条件必填，GAP-H1）
+#     action: WARN_RECOVER_OVERDUE
+# ---- 周期段 ----
+# 无周期（事件触发型）。脚注"纳入交接班交代"属交接班流程，不在本包范围。
