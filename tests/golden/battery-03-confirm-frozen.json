@@ -1,0 +1,45 @@
+{
+  "name": "battery-confirm-frozen",
+  "record_type": "battery_voltage_test",
+  "note": "合成样本（synthetic）：draft 签齐（单槽位）→ confirmed，rev/指纹不变（签齐冻结当版）",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "confirm",
+    "record_type": "battery_voltage_test",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "now": "2026-09-17T15:00:00+08:00",
+    "subject": { "record_uid": "ST001-battery_voltage_test-20260917-1000-1", "lifecycle": "draft", "rev": 1 },
+    "confirmations": [{ "slot": "测试人", "by": "李四", "at": "2026-09-17T15:00:00+08:00" }],
+    "ledger_view": {
+      "confirmed_digests": [],
+      "same_type_records": [
+        {
+          "record_uid": "ST001-battery_voltage_test-20260917-1000-1",
+          "lifecycle": "draft",
+          "rev": 1,
+          "occurred_at": "2026-09-17T10:00:00+08:00",
+          "dedupe_key_values": { "station": "ST001", "occurred_day": "2026-09-17", "test_kind": "定期" },
+          "fields": {
+            "dc_system_id": "DC-001",
+            "float_voltage": 241.5,
+            "test_kind": "定期",
+            "items": [{ "cell_no": 1, "voltage": 2.21 }]
+          }
+        }
+      ],
+      "linked_records": []
+    }
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "rev": 1,
+      "lifecycle": "confirmed",
+      "signature_slots": [{ "slot": "测试人", "state": "signed", "by": "李四", "at": "2026-09-17T15:00:00+08:00" }]
+    },
+    "rules": [{ "rule_id": "voltage_band", "verdict": "pass" }],
+    "alarm_state": { "state": null, "suppressed": false },
+    "cycle": null
+  }
+}

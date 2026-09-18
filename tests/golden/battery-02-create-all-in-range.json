@@ -1,0 +1,136 @@
+{
+  "name": "battery-create-all-in-range",
+  "record_type": "battery_voltage_test",
+  "note": "合成样本（synthetic）：单体全部落在电压带内、无落后电池 → 无告警指纹；6 个历史点齐备且降幅未达阈值 → 趋势 stable",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "create",
+    "record_type": "battery_voltage_test",
+    "station": {
+      "station_id": "ST001",
+      "station_name": "XX风电场"
+    },
+    "occurred_at": "2026-09-17T10:00:00+08:00",
+    "now": "2026-09-17T15:00:00+08:00",
+    "create_seq": 1,
+    "submitted_by": "张三",
+    "payload": {
+      "dc_system_id": "DC-001",
+      "float_voltage": 241.5,
+      "test_kind": "定期",
+      "items": [
+        {
+          "cell_no": 1,
+          "voltage": 2.2
+        },
+        {
+          "cell_no": 2,
+          "voltage": 2.2
+        }
+      ]
+    },
+    "history": [
+      {
+        "occurred_at": "2026-04-17T10:00:00+08:00",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "lifecycle": "archived",
+        "fields": {
+          "test_kind": "定期",
+          "items": [
+            {
+              "cell_no": 1,
+              "voltage": 2.32
+            }
+          ]
+        }
+      },
+      {
+        "occurred_at": "2026-05-17T10:00:00+08:00",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111112",
+        "lifecycle": "archived",
+        "fields": {
+          "test_kind": "定期",
+          "items": [
+            {
+              "cell_no": 1,
+              "voltage": 2.31
+            }
+          ]
+        }
+      },
+      {
+        "occurred_at": "2026-06-17T10:00:00+08:00",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111113",
+        "lifecycle": "archived",
+        "fields": {
+          "test_kind": "定期",
+          "items": [
+            {
+              "cell_no": 1,
+              "voltage": 2.31
+            }
+          ]
+        }
+      },
+      {
+        "occurred_at": "2026-07-17T10:00:00+08:00",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111114",
+        "lifecycle": "archived",
+        "fields": {
+          "test_kind": "定期",
+          "items": [
+            {
+              "cell_no": 1,
+              "voltage": 2.3
+            }
+          ]
+        }
+      },
+      {
+        "occurred_at": "2026-08-17T10:00:00+08:00",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111115",
+        "lifecycle": "archived",
+        "fields": {
+          "test_kind": "定期",
+          "items": [
+            {
+              "cell_no": 1,
+              "voltage": 2.3
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "rev": 1,
+      "lifecycle": "draft"
+    },
+    "rules": [
+      {
+        "rule_id": "voltage_band",
+        "verdict": "pass"
+      },
+      {
+        "rule_id": "lagging_detect",
+        "verdict": "pass"
+      }
+    ],
+    "trend": [
+      {
+        "metric": "cell_voltage_min",
+        "verdict": "stable",
+        "level": "info"
+      }
+    ],
+    "alarm_state": {
+      "state": null,
+      "suppressed": false
+    },
+    "actions_hint": [],
+    "cycle": null
+  }
+}

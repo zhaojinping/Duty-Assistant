@@ -1,0 +1,41 @@
+{
+  "name": "battery-trend-dropping",
+  "record_type": "battery_voltage_test",
+  "note": "合成样本（synthetic）：6 点窗口内单体最低电压由 2.30 降到 2.00（相对降幅 13.0% ≥ 10%）→ dropping/warn；单条目下落后电池判据记 skipped",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "create",
+    "record_type": "battery_voltage_test",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "occurred_at": "2026-09-17T10:00:00+08:00",
+    "now": "2026-09-17T15:00:00+08:00",
+    "create_seq": 1,
+    "submitted_by": "张三",
+    "payload": {
+      "dc_system_id": "DC-001",
+      "float_voltage": 241.5,
+      "test_kind": "定期",
+      "items": [{ "cell_no": 1, "voltage": 2.0 }]
+    },
+    "history": [
+      { "occurred_at": "2026-04-17T10:00:00+08:00", "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333331", "lifecycle": "archived", "fields": { "test_kind": "定期", "items": [{ "cell_no": 1, "voltage": 2.3 }] } },
+      { "occurred_at": "2026-05-17T10:00:00+08:00", "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333332", "lifecycle": "archived", "fields": { "test_kind": "定期", "items": [{ "cell_no": 1, "voltage": 2.3 }] } },
+      { "occurred_at": "2026-06-17T10:00:00+08:00", "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "lifecycle": "archived", "fields": { "test_kind": "定期", "items": [{ "cell_no": 1, "voltage": 2.3 }] } },
+      { "occurred_at": "2026-07-17T10:00:00+08:00", "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333334", "lifecycle": "archived", "fields": { "test_kind": "定期", "items": [{ "cell_no": 1, "voltage": 2.3 }] } },
+      { "occurred_at": "2026-08-17T10:00:00+08:00", "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333335", "lifecycle": "archived", "fields": { "test_kind": "定期", "items": [{ "cell_no": 1, "voltage": 2.3 }] } }
+    ]
+  },
+  "expect": {
+    "status": "ok",
+    "record": { "rev": 1, "lifecycle": "draft" },
+    "rules": [
+      { "rule_id": "voltage_band", "verdict": "pass" },
+      { "rule_id": "lagging_detect", "verdict": "skipped", "detail_contains": "≥2 个条目" }
+    ],
+    "trend": [{ "metric": "cell_voltage_min", "verdict": "dropping", "level": "warn", "evidence_contains": "窗口 6/6 点" }],
+    "alarm_state": { "state": null, "suppressed": false },
+    "actions_hint": [],
+    "cycle": null
+  }
+}
