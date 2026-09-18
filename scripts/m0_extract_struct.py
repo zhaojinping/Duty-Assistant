@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""提取 Excel 模板结构：sheet 名、合并单元格、表头行、列名、示例行。
+"""提取 Excel 模板结构：sheet 名、合并单元格、表头行、列名、全表逐行内容（含空白数据行与脚注行）。
 
 用法：python scripts/m0_extract_struct.py <模板目录> <输出JSON路径>
 目录与输出路径从 CLI 参数读取（不硬编码机器路径）。
@@ -41,7 +41,8 @@ def extract(path):
             "merged": [str(r) for r in ws.merged_cells.ranges],
             "rows": [],
         }
-        # 全量行（含脚注行），保证结构与脚注可在仓内复核
+        # 抓全表所有行（含表头、空白数据行、脚注行）：快照须可独立复核，
+        # 不再截断到固定行数（M0 定稿要求：抓取范围放宽到末行）
         for row in ws.iter_rows(min_row=1, max_row=ws.max_row, max_col=ws.max_column):
             vals = [cellstr(c.value) for c in row]
             # 行全空跳过记录但保留行号信息
