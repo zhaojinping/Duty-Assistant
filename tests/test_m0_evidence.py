@@ -1,9 +1,9 @@
 """M0 证据文件一致性测试。
 
-`scripts/m0/excel_struct.json`（结构快照，前 12 行）与 `scripts/m0/excel_extra.json`
+`scripts/m0/excel_struct.json`（结构快照，全表逐行）与 `scripts/m0/excel_extra.json`
 （脚注/下拉/批注/隐藏/序号预填）是《DSL 缺口清单》定稿的可复核证据，二者必须自洽：
-同一批记录、同一 footer 行、未覆盖区无异常内容。模板本身不入库，故 CI 只能校验
-提交的证据文件是否被改坏（真模板比对由 `scripts/m0_verify_snapshot.py` 在有模板时执行）。
+同一批记录、快照覆盖整表、数据区除序号预填外全空。模板本身不入库，故 CI 只能校验
+提交的证据文件是否被改坏（真模板逐格比对由 `scripts/m0_verify_snapshot.py` 在有模板时执行）。
 """
 
 import json
@@ -14,9 +14,6 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 STRUCT = ROOT / "scripts" / "m0" / "excel_struct.json"
 EXTRA = ROOT / "scripts" / "m0" / "excel_extra.json"
-
-SNAPSHOT_ROWS = 12
-FOOTER_SCAN_FROM = 13
 
 # 10 份在范围内的记录类型（停用的消防器材、保护定值压板不在此列）
 RECORD_TYPES = (
@@ -51,31 +48,38 @@ def test_record_sets_match(evidence):
     assert (ROOT / extra["generated_by"]).is_file()
 
 
-def test_snapshot_covers_first_rows_only(evidence):
+def test_snapshot_covers_whole_sheet(evidence):
+    """快照抓取范围必须覆盖整表（不得再截断到固定行数）。"""
     struct, _ = evidence
     for record_type, entry in struct.items():
         sheet = entry["sheets"][0]
-        assert len(sheet["rows"]) == SNAPSHOT_ROWS, record_type
-        assert [row["r"] for row in sheet["rows"]] == list(range(1, SNAPSHOT_ROWS + 1)), record_type
+        assert len(sheet["rows"]) == sheet["max_row"], record_type
+        assert [row["r"] for row in sheet["rows"]] == list(range(1, sheet["max_row"] + 1)), record_type
 
 
 def test_extra_matches_structure(evidence):
     struct, extra = evidence
     for record_type, entry in extra["records"].items():
         sheet = struct[record_type]["sheets"][0]
+        assert entry["sheet"] == sheet["sheet"], record_type
+        assert entry["max_row"] == sheet["max_row"], record_type
+        assert entry["max_col"] == sheet["max_col"], record_type
         # 脚注行即末行，且必须是一条整行合并
         assert entry["footer_row"] == sheet["max_row"], record_type
         assert entry["footer_range"] in sheet["merged"], record_type
-        assert entry["sheet"] == sheet["sheet"], record_type
-        assert entry["max_col"] == sheet["max_col"], record_type
+        # 表头行在标题之下、脚注之上，且为脚注之前最后一个多列填充行
+        assert entry["title_row"] < entry["header_row"] < entry["footer_row"], record_type
+        # 脚注原文与快照末行同源
+        footer_text = sheet["rows"][-1]["vals"][0]
+        assert footer_text in entry["footer_lines"][0], record_type
 
 
-def test_uncovered_region_is_clean(evidence):
-    """快照未覆盖区（第 13 行起至脚注前）只允许出现脚注原文与序号预填。"""
+def test_data_region_is_clean(evidence):
+    """数据区（表头+1 … 脚注-1）除 A 列序号预填外应为空。"""
     _, extra = evidence
     for record_type, entry in extra["records"].items():
-        region = entry["uncovered_region"]
-        assert region["from"] == FOOTER_SCAN_FROM, record_type
+        region = entry["data_region"]
+        assert region["from"] == entry["header_row"] + 1, record_type
         assert region["to"] == entry["footer_row"] - 1, record_type
         assert region["unexpected_cells"] == [], record_type
 

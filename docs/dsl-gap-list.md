@@ -6,8 +6,8 @@
 - 核对对象：**10 份**在范围内的 **空白** Excel 模板（消防器材检查、保护定值压板检查两份已停用，未读）
 - 模板来源与保密：模板落在共享盘收资文件夹，为空白模板；按 `AGENTS.md` 与 `docs/repository-checks.md` **不入 Git**，核验时置于本地任意目录、目录由脚本参数传入
 - 提取与核验方式：`scripts/m0_extract_struct.py`、`scripts/m0_extract_extra.py`（openpyxl 3.1.5）；核验入口 `scripts/m0_verify_snapshot.py`
-- 仓库内证据：`scripts/m0/excel_struct.json`（结构快照，前 12 行）、`scripts/m0/excel_extra.json`（脚注原文 / 数据有效性 / 批注 / 隐藏行列 / 序号预填）
-- 核验结论：**10/10 类快照与真模板零差异**；快照未覆盖区无异常内容；下拉、批注、隐藏行列经实测全为 0（命令与输出见 §15）
+- 仓库内证据：`scripts/m0/excel_struct.json`（结构快照，**全表逐行**）、`scripts/m0/excel_extra.json`（脚注原文 / 数据有效性 / 批注 / 隐藏行列 / 序号预填）
+- 核验结论：**10/10 类快照与真模板全表逐格零差异**；数据区除序号预填外无异常内容；下拉、批注、隐藏行列经实测全为 0（命令与输出见 §15）
 
 ## 0. 总体事实与通用映射约定
 
@@ -415,16 +415,16 @@ python scripts/m0_verify_snapshot.py <模板目录> --extra-out scripts/m0/excel
 
 ```text
 模板目录：<模板目录>
-breaker_trip_record                        sheet/dims/合并/前12行 一致  未覆盖区 13-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
-surge_arrester_action_record               sheet/dims/合并/前12行 一致  未覆盖区 13-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
-grounding_wire_record                      sheet/dims/合并/前12行 一致  未覆盖区 13-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
-two_ticket_ledger                          sheet/dims/合并/前12行 一致  未覆盖区 13-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
-infrared_thermography_record               sheet/dims/合并/前12行 一致  未覆盖区 13-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
-insulation_test_record                     sheet/dims/合并/前12行 一致  未覆盖区 13-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
-battery_voltage_test                       sheet/dims/合并/前12行 一致  未覆盖区 13-26 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
-transformer_core_clamp_current_record      sheet/dims/合并/前12行 一致  未覆盖区 13-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
-protection_switch_record                   sheet/dims/合并/前12行 一致  未覆盖区 13-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
-rodent_proof_check_record                  sheet/dims/合并/前12行 一致  未覆盖区 13-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
+breaker_trip_record                        全表 25 行逐格 一致  表头 r3 脚注 r25 数据区 4-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
+surge_arrester_action_record               全表 25 行逐格 一致  表头 r3 脚注 r25 数据区 4-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
+grounding_wire_record                      全表 25 行逐格 一致  表头 r3 脚注 r25 数据区 4-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
+two_ticket_ledger                          全表 25 行逐格 一致  表头 r3 脚注 r25 数据区 4-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
+infrared_thermography_record               全表 25 行逐格 一致  表头 r3 脚注 r25 数据区 4-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
+insulation_test_record                     全表 25 行逐格 一致  表头 r3 脚注 r25 数据区 4-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
+battery_voltage_test                       全表 27 行逐格 一致  表头 r4 脚注 r27 数据区 5-26 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
+transformer_core_clamp_current_record      全表 25 行逐格 一致  表头 r3 脚注 r25 数据区 4-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
+protection_switch_record                   全表 25 行逐格 一致  表头 r3 脚注 r25 数据区 4-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
+rodent_proof_check_record                  全表 25 行逐格 一致  表头 r3 脚注 r25 数据区 4-24 异常内容 0 项 | 下拉 0 批注 0 隐藏行 0 隐藏列 0
 
 差异合计：0
 已写 scripts/m0/excel_extra.json
@@ -432,7 +432,10 @@ rodent_proof_check_record                  sheet/dims/合并/前12行 一致  �
 
 同目录另有 `python -m pytest`：8 passed（含 `tests/test_m0_evidence.py` 对上述两份证据文件的一致性校验）。
 
-- **核验范围**：每类核对 sheet 名、`dims`、物理列数、前 12 行逐格内容（含表头列名）、合并单元格集合；快照行数必须为 12（`scripts/m0_extract_struct.py` 的抓取上限）。
-- **闭合初稿两处证据缺口**：① 快照只覆盖前 12 行 → 由 `scripts/m0/excel_extra.json` 补齐第 13 行起的脚注原文与空白性核对（含蓄电池序号预填实为 A5–A24 = 1–20）；② 补充提取未持久化 → `excel_extra.json` 已入库。二者均在仓库内可复核，不再依赖模板文件本身。
-- **防误传**：核验脚本在落盘 `excel_extra.json` 前强制检查未覆盖区是否只有脚注/序号预填，检出其他内容即拒绝落盘并非零退出；模板本身按 `AGENTS.md` 不入 Git。
+- **核验范围**：每类核对 sheet 名、`dims`、行列数、合并单元格集合、**整表每一行逐格内容**（含表头列名、空白数据行、脚注行、蓄电池序号预填）。
+- **闭合初稿自我声明的两处证据缺口**（两条均为最终措施，非二选一）：
+  1. **快照抓取范围放宽到末行** —— `scripts/m0_extract_struct.py` 原先硬编码 `min(ws.max_row, 12)`，现抓取全表；`scripts/m0/excel_struct.json` 已按真模板重生成（每类 25 行、蓄电池 27 行）。重生成前后**前 12 行逐格零漂移**（已比对），新增行只含脚注原文与 A 列序号预填，无业务数据。
+  2. **补充提取落盘** —— `scripts/m0/excel_extra.json` 入库（脚注原文 / 数据有效性 / 批注 / 隐藏行列 / 序号预填 / 数据区空白性）。
+  两处闭合后，核验不再依赖模板文件本身即可在仓库内复核。
+- **防误传（代码强制）**：核验脚本对全表逐格记账——非空单元格只允许出现在「表头行及其以上」「脚注行」「A 列纯数字序号预填」三处，出现其他内容即判定疑似真实数据、拒绝落盘并非零退出（不靠人工自觉）。
 - **边界（如实声明）**：本清单只覆盖**模板可读出的结构信息**；业务语义（enum 选项集、限值、周期、编号格式）模板中不存在，见 §14，未取得现场口径前不作结论。

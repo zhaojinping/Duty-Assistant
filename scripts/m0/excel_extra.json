@@ -1,5 +1,5 @@
 {
- "note": "脱敏结构元信息：脚注原文/数据有效性/批注/隐藏行列/序号预填/数据行空白性核对；不含业务数据",
+ "note": "脱敏结构元信息：脚注原文/数据有效性/批注/隐藏行列/序号预填/数据区空白性核对；不含业务数据",
  "generated_by": "scripts/m0_verify_snapshot.py",
  "records": {
   "breaker_trip_record": {
@@ -7,13 +7,14 @@
    "max_row": 25,
    "max_col": 8,
    "title_row": 1,
+   "header_row": 3,
    "footer_row": 25,
    "footer_range": "A25:H25",
    "footer_lines": [
     "A25: 填写说明：制度要求：断路器每次跳闸均应记录；接近“允许事故开闸次数”时重点跟踪。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。"
    ],
-   "uncovered_region": {
-    "from": 13,
+   "data_region": {
+    "from": 4,
     "to": 24,
     "unexpected_cells": []
    },
@@ -27,13 +28,14 @@
    "max_row": 25,
    "max_col": 7,
    "title_row": 1,
+   "header_row": 3,
    "footer_row": 25,
    "footer_range": "A25:G25",
    "footer_lines": [
     "A25: 填写说明：制度要求：避雷器动作后记录；每月核对计数器底数；非雷雨天气动作应检查上报。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。"
    ],
-   "uncovered_region": {
-    "from": 13,
+   "data_region": {
+    "from": 4,
     "to": 24,
     "unexpected_cells": []
    },
@@ -47,13 +49,14 @@
    "max_row": 25,
    "max_col": 7,
    "title_row": 1,
+   "header_row": 3,
    "footer_row": 25,
    "footer_range": "A25:G25",
    "footer_lines": [
     "A25: 填写说明：交接班须交代使用中接地线及装设地点；工作票终结后应及时拆除。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。"
    ],
-   "uncovered_region": {
-    "from": 13,
+   "data_region": {
+    "from": 4,
     "to": 24,
     "unexpected_cells": []
    },
@@ -67,13 +70,14 @@
    "max_row": 25,
    "max_col": 9,
    "title_row": 1,
+   "header_row": 3,
    "footer_row": 25,
    "footer_range": "A25:I25",
    "footer_lines": [
     "A25: 填写说明：制度要求：操作票按年编号装订、工作票按月编号装订，封面统计数字，保存期一年。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。"
    ],
-   "uncovered_region": {
-    "from": 13,
+   "data_region": {
+    "from": 4,
     "to": 24,
     "unexpected_cells": []
    },
@@ -87,13 +91,14 @@
    "max_row": 25,
    "max_col": 11,
    "title_row": 1,
+   "header_row": 3,
    "footer_row": 25,
    "footer_range": "A25:K25",
    "footer_lines": [
     "A25: 填写说明：制度要求：定期测温；过负荷、高温天气、新投设备应加强测温。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。"
    ],
-   "uncovered_region": {
-    "from": 13,
+   "data_region": {
+    "from": 4,
     "to": 24,
     "unexpected_cells": []
    },
@@ -107,13 +112,14 @@
    "max_row": 25,
    "max_col": 11,
    "title_row": 1,
+   "header_row": 3,
    "footer_row": 25,
    "footer_range": "A25:K25",
    "footer_lines": [
     "A25: 填写说明：制度要求：按规程周期进行绝缘测试并记录。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。"
    ],
-   "uncovered_region": {
-    "from": 13,
+   "data_region": {
+    "from": 4,
     "to": 24,
     "unexpected_cells": []
    },
@@ -127,13 +133,14 @@
    "max_row": 27,
    "max_col": 5,
    "title_row": 1,
+   "header_row": 4,
    "footer_row": 27,
    "footer_range": "A27:E27",
    "footer_lines": [
     "A27: 填写说明：电池序号按实际数量增删；AI自动做电压一致性分析并标记落后电池、给更换建议。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。"
    ],
-   "uncovered_region": {
-    "from": 13,
+   "data_region": {
+    "from": 5,
     "to": 26,
     "unexpected_cells": []
    },
@@ -173,13 +180,14 @@
    "max_row": 25,
    "max_col": 8,
    "title_row": 1,
+   "header_row": 3,
    "footer_row": 25,
    "footer_range": "A25:H25",
    "footer_lines": [
     "A25: 填写说明：制度要求：定期测试主变铁芯及夹件接地电流；电流异常增大应安排停运检查。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。"
    ],
-   "uncovered_region": {
-    "from": 13,
+   "data_region": {
+    "from": 4,
     "to": 24,
     "unexpected_cells": []
    },
@@ -193,13 +201,14 @@
    "max_row": 25,
    "max_col": 8,
    "title_row": 1,
+   "header_row": 3,
    "footer_row": 25,
    "footer_range": "A25:H25",
    "footer_lines": [
     "A25: 填写说明：制度要求：保护及自动装置投退变更情况纳入交接班交代。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。"
    ],
-   "uncovered_region": {
-    "from": 13,
+   "data_region": {
+    "from": 4,
     "to": 24,
     "unexpected_cells": []
    },
@@ -213,13 +222,14 @@
    "max_row": 25,
    "max_col": 5,
    "title_row": 1,
+   "header_row": 3,
    "footer_row": 25,
    "footer_range": "A25:E25",
    "footer_lines": [
     "A25: 填写说明：制度要求：定期检查防小动物设施，孔洞封堵完好。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。"
    ],
-   "uncovered_region": {
-    "from": 13,
+   "data_region": {
+    "from": 4,
     "to": 24,
     "unexpected_cells": []
    },
