@@ -3,8 +3,10 @@ from pathlib import Path
 import argparse
 import ast
 import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+TESTS_DIR = ROOT / 'tests'
 
 try:
     from scripts.repo_guard import inspect
@@ -60,6 +62,28 @@ def format_issues(path, data):
     return issues
 
 
+def test_stage_issues():
+    """Run pytest when a tests/ directory exists (full-check mode).
+
+    Scan-only before that; once tests exist the suite must pass on every
+    full run (pre-commit without --staged, CI). --staged runs stay fast.
+    """
+    if not TESTS_DIR.is_dir():
+        return None  # no tests yet: scan-only mode
+    suffix = '.exe' if sys.platform == 'win32' else ''
+    venv_py = ROOT / '.venv' / ('Scripts' if sys.platform == 'win32' else 'bin') / ('python' + suffix)
+    runner = [str(venv_py)] if venv_py.exists() else [sys.executable]
+    proc = subprocess.run(
+        runner + ['-m', 'pytest', '-q', '--no-header'],
+        cwd=ROOT, capture_output=True, text=True, timeout=600,
+    )
+    tail = (proc.stdout + proc.stderr).strip().splitlines()[-3:]
+    if proc.returncode != 0:
+        return ['test stage failed:\n' + '\n'.join(tail)]
+    print('test stage: ' + (tail[-1] if tail else 'pytest ok'))
+    return []
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--staged', action='store_true')
@@ -87,6 +111,9 @@ if __name__ == '__main__':
             for problem in inspect(path, data) + syntax_issues(path, data) + format_issues(path, data):
                 failures.append(f'{path}: {problem}')
     print('\n'.join(failures) if failures else f'PASS: checked {len(paths)} files')
+    test_failures = test_stage_issues()
+    if test_failures:
+        failures.extend(test_failures)
     if not args.staged and not failures:
         print(TEST_REQUIRED_NOTE)
     raise SystemExit(1 if failures else 0)
