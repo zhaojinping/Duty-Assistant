@@ -41,8 +41,8 @@ def extract(path):
             "merged": [str(r) for r in ws.merged_cells.ranges],
             "rows": [],
         }
-        # 抓前 12 行原始内容（含空格子标记），足够覆盖表头+示例
-        for row in ws.iter_rows(min_row=1, max_row=min(ws.max_row, 12), max_col=ws.max_column):
+        # 全量行（含脚注行），保证结构与脚注可在仓内复核
+        for row in ws.iter_rows(min_row=1, max_row=ws.max_row, max_col=ws.max_column):
             vals = [cellstr(c.value) for c in row]
             # 行全空跳过记录但保留行号信息
             info["rows"].append({"r": row[0].row, "vals": vals})
