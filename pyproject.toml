@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "records_kit"
+version = "0.1.0"
+description = "Duty-Assistant core: pure-function record engine for 10 types of operation duty records (validate/assemble/rules/trend/lifecycle)."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+# 铁律 2/环境假设（docs/design.md §4）：零运行时依赖，标准库仅 tomllib/json/hashlib 等。
+dependencies = []
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
