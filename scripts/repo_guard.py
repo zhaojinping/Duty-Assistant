@@ -11,6 +11,10 @@ BANNED_SUFFIXES = ('.bak', '.pyc', '.log', '.tmp', '.swp')
 HANDOVER_MARKS = ('handover', 'receipt', '交接', '回执')
 SECRET_NAME_PARTS = {'key', 'token', 'secret', 'password', 'passwd', 'pwd', 'cred', 'creds',
                      'credential', 'credentials', 'auth', 'salt', 'apikey', 'privatekey'}
+# Declarative-DSL property names that are field identifiers, not credentials.
+# Matching these bare-word keys in .md/.toml/.json samples is a false positive:
+# the value is always a registry field name (e.g. key = "test_kind").
+DSL_KEY_NAMES = {'key', 'key_field', 'apikey_placeholder'}
 PLACEHOLDER_EXACT = {'example', 'sample', 'placeholder', 'dummy', 'synthetic', 'fake',
                      'demo', 'changeme', 'todo', 'password', 'secret', 'token', 'value'}
 PLACEHOLDER_PATTERNS = (
@@ -34,6 +38,10 @@ def _is_secret_name(name):
     return any(part.lower() in SECRET_NAME_PARTS for part in re.split(r'[_-]+', name))
 
 
+def _is_dsl_key(name):
+    return name.lower() in DSL_KEY_NAMES
+
+
 def _is_placeholder(value):
     if value.lower() in PLACEHOLDER_EXACT:
         return True
@@ -49,6 +57,9 @@ def _plaintext_assignments(text):
         candidates.append((match.group(1) or match.group(2), match.group(3), False))
     for name, value, quoted in candidates:
         if not _is_secret_name(name):
+            continue
+        if _is_dsl_key(name):
+            # DSL property naming a field (key = "cell_no"), not a credential.
             continue
         if not value.isascii() or not all(ch.isprintable() for ch in value):
             continue
