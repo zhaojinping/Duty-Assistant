@@ -4,6 +4,13 @@
 - 状态：**审定稿**
 - 工作名：`Duty-Assistant`（可改，改名不影响设计）
 
+> **修订 A（2026-09-18，主控拍板）**：依据 M0 缺口清单初稿（docs/dsl-gap-list-draft.md §13 四组决策，全部拍板通过）：
+> 1. **E1/E2** 接地线、保护投退改**一行一动作建模**（flat），装-拆/投-退跨记录配对走 T3 pairing（复合键支持），不再用条目内 T2 设想；
+> 2. **G1/G2** ledger_view 行结构增设 `confirmed_fields`，**T3 默认取最后已确认版**；并存窗口内 **archive 目标=最后确认版**；
+> 3. **F1** 测温 δt% **人工报数起步**（T1 band 表达），派生字段机制列 M2 扩展；
+> 4. **A2/B1** aggregate 增 `reset_ref` 声明（**缺省不复位**）；允许事故开闸次数表定稿 **keyed-by-device** 形态。
+> 受影响条款：§7.4 两行、§7.3 算子表、§8.1 archive 行、§8.3 行结构与两处口径、§11 M0、§12 待定项。
+
 ## 1. 背景与目标
 
 围绕 **10 类**运行值班记录（断路器跳闸、避雷器动作、接地线装拆、两票登记、设备测温、绝缘测试、蓄电池电压测试、主变铁芯夹件电流测试、保护投退、防小动物检查），构建一个**全新、独立**的工具包。
@@ -276,13 +283,13 @@ drop_warn = 0.10
 |---|---|---|---|---|
 | breaker_trip_record | 断路器跳闸记录簿 | flat | 记录人 | 跳闸次数逼近允许开闸次数（T3, aggregate+external_baseline，算子语义随 M0 定稿） |
 | surge_arrester_action_record | 避雷器动作记录簿 | flat | 记录人 | 非雷雨天气动作→warn（T1 条件，when 表达力见 §7.3） |
-| grounding_wire_record | 接地线装拆记录簿 | item_list | 操作人、监护人 | 装拆配对（T3, pairing 键=接地线编号，含重复占用）；拆除超时（T3：link 工作票跨记录 date_diff）；条目内装-拆间隔（T2, date_diff） |
+| grounding_wire_record | 接地线装拆记录簿 | flat（修订A：一行一动作） | 操作人、监护人 | 装拆配对（T3, pairing 键=接地线编号，含重复占用）；拆除超时（T3：link 工作票跨记录 date_diff）；装-拆间隔（T3 跨记录 date_diff，修订A：不再走条目内 T2） |
 | two_ticket_ledger | 两票登记台账 | item_list | 签发人、许可人 | 编号连续性（T3, continuity，从 §8.3 行 fields 取值） |
 | infrared_thermography_record | 设备测温（红外）记录簿 | item_list | 记录人 | 温升/温差等级（**T2**, diff）；测点必附红外图（require_attachment） |
 | insulation_test_record | 绝缘测试记录簿 | flat | 试验人 | 吸收比带（T2, ratio）；阻值下限（T1）；周期（探针执行，§7.3 豁免注） |
 | battery_voltage_test | 蓄电池电压测试记录簿 | item_list | 测试人 | 电压带（T1）；落后偏差（T2）；周期（探针执行，§7.3 豁免注） |
 | transformer_core_clamp_current_record | 主变铁芯/夹件接地电流测试记录簿 | flat | 测试人 | 电流限值（T1）；增长趋势（trend） |
-| protection_switch_record | 保护投退记录簿 | item_list | 操作人、监护人 | 投退配对（T3, pairing 键=装置功能，含重复占用）；恢复时限（T3, recovery_within） |
+| protection_switch_record | 保护投退记录簿 | flat（修订A：一行一动作） | 操作人、监护人 | 投退配对（T3, pairing 复合键=[装置,功能]，含重复占用，修订A）；恢复时限（T3, recovery_within，跨记录配对语义） |
 | rodent_proof_check_record | 防小动物检查记录簿 | item_list | 检查人 | 雨季/秋季重点期（T1 条件，when 日历窗口类进 M0 清单） |
 
 fire_equipment_check_record（消防器材检查）、protection_setting_plate_check_record（保护定值压板检查）：**已移除**（业主决策），不在本包范围。`two_ticket_ledger` 只是登记台账，签发/许可/终结流程不在核心范围。各记录完整列级 schema 以 `记录表格/` 对应 Excel 模板为准，M1 起逐列落成 TOML 声明。
@@ -354,7 +361,7 @@ alarm_ack：适用于任意非 voided 记录；不改 fields、不加 rev（告�
 - `cycle_status`"计入做过"按**记录非 voided 且存在 confirmed/archived 版本**判定——correct 并存窗口不产生假"漏做"，confirmed→voided 的记录不遮掩也不虚报；
 - **两类查重视图口径**：业务判重（`E_DUP_KEY`）对**非 voided** 行（作废让位，voided 行不占业务键）；uid 查重（`E_DUP_UID`）对**含 voided 墓碑的完整视图**（墓碑占号）。
 
-**correct 并存窗口取值口径（随 M0 定稿，进入 M1 前建议优先拍板）**：定稿更正后、新版签认前，账本行的 `lifecycle`（最高完成态=confirmed）与 `rev/fields`（最新版=draft 新版）来自不同版本——T3 规则（continuity/pairing 等）若从该行 `fields` 取值，会消费**未签认**数据；且该窗口内 `archive` 的目标版本口径（最新版 or 最后确认版）未定。两项均列 M0 缺口清单（候选方案：行结构增设 `confirmed_fields`，T3 默认取最后已确认版）。
+**correct 并存窗口取值口径（修订A 已拍板）**：定稿更正后、新版签认前，账本行的 `lifecycle`（最高完成态=confirmed）与 `rev/fields`（最新版=draft 新版）来自不同版本——T3 规则（continuity/pairing 等）若从该行 `fields` 取值，会消费**未签认**数据。**拍板结论：ledger_view 行结构增设 `confirmed_fields`（最后已确认版字段投影），T3 默认取 `confirmed_fields`；该窗口内 `archive` 目标=最后确认版**。`aggregate:count_over` 增 `reset_ref` 声明（缺省不复位）；允许事故开闸次数表为 keyed-by-device 形态。
 
 历史与告警同理：`history`（§5.1）、`alarm_history`（§6.2）、`baselines`（§5）行/数据结构已各自钉死或随 M0 定稿；meta-test 校验各视图完整性。
 

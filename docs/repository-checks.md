@@ -1,6 +1,6 @@
 # 仓库检查说明
 
-本仓库的门禁由 `scripts/repo_checks.py` 统一承担，本地 pre-commit 钩子与 GitHub CI 调用同一入口，检查口径一致。全部为 Python 3.11+ 标准库实现，无第三方依赖。
+本仓库的门禁由 `scripts/repo_checks.py` 统一承担，本地 pre-commit 钩子与 GitHub CI 调用同一入口，检查口径一致。文件检查为 Python 标准库实现、零第三方依赖；测试阶段通过子进程调用 pytest（仅测试需要 pytest，见 `pyproject.toml` 的 `[test]` extra）。
 
 ## 首次使用
 
@@ -12,7 +12,7 @@ python scripts/install_hooks.py
 
 ## 检查内容
 
-入口 `python scripts/repo_checks.py`，当前为文件检查阶段：
+入口 `python scripts/repo_checks.py`，两阶段：
 
 1. 文件检查（`scripts/repo_guard.py`）
    - 隐私扫描：明文密钥赋值（名字含 key/token/secret/password 等词段，值为 8 字符以上 ASCII 字面量），覆盖三种常见形态——无引号键+引号值（Python/env）、JSON 引号键、无引号 YAML·env 裸标量；另有 token/私钥形态、个人绝对路径（`<盘>:\Users\<名>\`、`/home/<用户>/`、`/Users/<用户>/`）、文档署名（`署名：`/`作者：`/`author:`）。仅按完整占位格式放行：`xxxx-xxxx` 全 x 串、`<...>`、`${...}`、`{{ ... }}`、`your-...` 前缀及 changeme/example 等整词；值中间夹着占位词不豁免。
@@ -20,7 +20,7 @@ python scripts/install_hooks.py
    - 本地产物拦截：`.dev-flow`、`local-private`、`runtime`、`logs` 等目录，`.bak/.log/.tmp/.swp/.pyc` 后缀，文件名含 handover/receipt/交接/回执，以及 `*.local.*` 配置覆盖、`.env*`（`.env.example` 除外）、二进制数据文件（`.docx/.xlsx/.pdf/.db/.zip` 等，需单独审批）。
    - 语法检查：受跟踪 `.py` 文件 `ast.parse`，不执行被扫描模块。
    - 基础格式：`.py`/`.yml` 行尾空白、`.py`/`.md`/`.yml` 末尾换行。`.md` 不查行尾空白（Markdown 双空格换行是合法语法）。
-2. 测试执行：**暂未启用**。仓库尚无 `tests/`，全量模式会提示 `no tests yet` 并放行；首个测试进入 `tests/` 后，须将 `repo_checks.py` 升级为含测试阶段（可移植 duty-ops 同名脚本的 `run_tests`），CI 随之强制非零用例。
+2. 测试执行：**已启用**。`tests/` 目录存在时自动执行 `pytest -q`（全量与 `--staged` 模式都跑，与 duty-ops 同口径——每次提交都验证；优先用仓库 `.venv` 的解释器，无 venv 时用当前解释器，当前解释器无 pytest 时本地钩子会失败，须先 `python -m venv .venv && .venv/Scripts/python -m pip install -e '.[test]'`）；零用例、任一失败或报错均非零退出。CI 先 `pip install -e '.[test]'` 再调本入口，故 pytest 恒可用。
 
 ## 全量与暂存区语义
 
@@ -32,7 +32,7 @@ python scripts/install_hooks.py
 ## 边界（如实声明）
 
 - 秘密扫描主体 gitleaks：本地钩子只扫暂存增量，提交历史由 CI 全量兜底；两者口径同源（`gitleaks.toml`）。扫描器缺失或不可执行时钩子 fail-closed（拒绝提交），不是悄悄放行。
-- 本地钩子仍可被 `--no-verify` 跳过——客户端钩子原理上无强制力。GitHub free 计划暂无分支保护，服务端约束靠 CI gitleaks 全量扫描兜底，绕过钩子的提交也会被 CI 岗判红。人工审批（主控审核后才合并）是主要约束。主控保留直推 `main` 权限作为最后逃生口。
+- 本地钩子仍可被 `--no-verify` 跳过——客户端钩子原理上无强制力。真正的合并约束在服务端：`main` 已启用分支保护（必须 PR、必须过 `repo-check`、禁强推与删除、`enforce_admins` 开启——管理员直推同样被 `GH006` 拒收）。绕过钩子的提交进不了 `main`，或进了也会被 CI gitleaks 岗当场判红。清理误推需临时撤保护、`--force-with-lease` 回退、再恢复保护。
 - CI 与钩子都是保守检查，不能替代人工看 diff；发现泄漏按密钥已泄漏处理（立即吊销轮换，而非删除提交了事——历史里删不掉）。
 
-CI 在 Windows 与 Ubuntu 上跑 Python 3.11/3.12。第三方 Action 钉 SHA。
+CI 在 Windows 与 Ubuntu 上跑 Python 3.12/3.13。第三方 Action 钉 SHA。

@@ -1,4 +1,6 @@
-"""Single check entry for the pre-commit guard, scan-only mode until tests exist."""
+"""Single check entry: file gates for the pre-commit hook, file gates plus the
+pytest stage for full runs (CI). Scan-only only while no tests/ directory
+exists; local full runs prefer the repo .venv when present."""
 from pathlib import Path
 import argparse
 import ast
@@ -114,6 +116,6 @@ if __name__ == '__main__':
     test_failures = test_stage_issues()
     if test_failures:
         failures.extend(test_failures)
-    if not args.staged and not failures:
+    if not args.staged and test_failures is None:
         print(TEST_REQUIRED_NOTE)
     raise SystemExit(1 if failures else 0)
