@@ -3,6 +3,9 @@
 
 用法：python scripts/m0_extract_extra.py <模板目录>   （JSON 结果打到 stdout）
 目录从 CLI 参数读取（不硬编码机器路径）。
+
+持久化产物见 `scripts/m0/excel_extra.json`（由 `scripts/m0_verify_snapshot.py` 生成，
+含脚注原文/下拉/批注/隐藏行列/序号预填，并在落盘前强制校验非真实数据）。
 """
 import json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
