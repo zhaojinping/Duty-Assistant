@@ -1,0 +1,52 @@
+{
+  "name": "battery-correct-confirmed-supersede",
+  "record_type": "battery_voltage_test",
+  "note": "合成样本（synthetic）：confirmed 上的定稿更正 —— 新版回 draft、rev+1、自动加 supersedes 指向前版、须重新签认",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "correct",
+    "record_type": "battery_voltage_test",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "occurred_at": "2026-09-17T10:00:00+08:00",
+    "now": "2026-09-17T15:00:00+08:00",
+    "submitted_by": "张三",
+    "subject": { "record_uid": "ST001-battery_voltage_test-20260917-1000-1", "lifecycle": "confirmed", "rev": 1 },
+    "payload": {
+      "dc_system_id": "DC-001",
+      "float_voltage": 241.5,
+      "test_kind": "定期",
+      "items": [{ "cell_no": 1, "voltage": 2.19 }]
+    },
+    "ledger_view": {
+      "confirmed_digests": ["sha256:2222222222222222222222222222222222222222222222222222222222222222"],
+      "same_type_records": [
+        {
+          "record_uid": "ST001-battery_voltage_test-20260917-1000-1",
+          "lifecycle": "confirmed",
+          "rev": 1,
+          "occurred_at": "2026-09-17T10:00:00+08:00",
+          "fields": {
+            "dc_system_id": "DC-001",
+            "float_voltage": 241.5,
+            "test_kind": "定期",
+            "items": [{ "cell_no": 1, "voltage": 2.21 }]
+          }
+        }
+      ],
+      "linked_records": []
+    }
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "rev": 2,
+      "lifecycle": "draft",
+      "links": [{ "type": "supersedes", "record_uid": "ST001-battery_voltage_test-20260917-1000-1" }],
+      "signature_slots": [{ "slot": "测试人", "state": "pending" }]
+    },
+    "rules": [{ "rule_id": "voltage_band", "verdict": "pass" }],
+    "alarm_state": { "state": null, "suppressed": false },
+    "cycle": null
+  }
+}

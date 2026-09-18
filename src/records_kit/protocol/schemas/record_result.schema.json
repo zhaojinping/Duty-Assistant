@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "records-kit/protocol/1.5/record_result.schema.json",
+  "title": "RecordResult",
+  "description": "输出协议（docs/design.md §6）。手写权威文件。status=rejected 时 record/rules/trend/actions_hint/alarm_state/cycle/digest 为空或 null。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol", "protocol_version", "operation", "record_type", "status", "validation"],
+  "properties": {
+    "protocol": { "const": "records-kit" },
+    "protocol_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+    "operation": {
+      "description": "回显操作；输入 operation 非法时为 null（错值留在 validation.errors）",
+      "type": ["string", "null"],
+      "enum": ["create", "confirm", "return", "correct", "void", "archive", "alarm_ack", "cycle_probe", null]
+    },
+    "record_type": { "type": ["string", "null"] },
+    "status": { "type": "string", "enum": ["ok", "rejected"] },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "errors"],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "code", "message"],
+            "properties": {
+              "path": { "type": "string" },
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "record": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["record_uid", "rev", "lifecycle", "fields", "digest", "signature_slots"],
+      "properties": {
+        "record_uid": { "type": "string", "minLength": 1 },
+        "rev": { "type": "integer", "minimum": 1 },
+        "lifecycle": { "type": "string", "enum": ["draft", "confirmed", "archived", "voided"] },
+        "fields": { "type": "object" },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "signature_slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["slot", "state"],
+            "properties": {
+              "slot": { "type": "string", "minLength": 1 },
+              "state": { "type": "string", "enum": ["pending", "signed"] },
+              "by": { "type": "string" },
+              "at": { "type": "string" }
+            }
+          }
+        },
+        "links": {
+          "description": "M1 协议补足：成对关系（含 correct 自动写入的 supersedes）需随结果回传，壳层据此持久化（§6 字段表未列，见 PR 说明）",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "record_uid"],
+            "properties": {
+              "type": { "type": "string", "enum": ["retest_of", "pairs_with", "supersedes", "references"] },
+              "record_uid": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "rules": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule_id", "kind", "tier", "verdict", "threshold", "level", "detail"],
+        "properties": {
+          "rule_id": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string" },
+          "tier": { "type": "integer", "minimum": 1, "maximum": 3 },
+          "verdict": { "type": "string", "enum": ["pass", "violation", "skipped"] },
+          "threshold": { "type": ["string", "null"] },
+          "level": { "type": "string", "enum": ["info", "warn", "alarm"] },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "trend": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metric", "verdict", "level", "evidence"],
+        "properties": {
+          "metric": { "type": "string", "minLength": 1 },
+          "verdict": { "type": "string", "enum": ["stable", "dropping", "insufficient_history"] },
+          "level": { "type": "string", "enum": ["info", "warn", "alarm"] },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "actions_hint": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "text"],
+        "properties": {
+          "code": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "alarm_state": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["fingerprint", "state", "suppressed"],
+      "properties": {
+        "fingerprint": { "type": ["string", "null"] },
+        "state": { "type": ["string", "null"], "enum": ["new", "recurred", "escalated", null] },
+        "suppressed": { "type": "boolean" },
+        "evidence": { "type": "string", "description": "判定依据（含未传 alarm_history 的注明，§6.2）" }
+      }
+    },
+    "cycle": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["record_type", "verdict", "due_at", "overdue_since", "detail"],
+        "properties": {
+          "record_type": { "type": "string", "minLength": 1 },
+          "verdict": { "type": "string", "enum": ["due", "overdue", "missing"] },
+          "due_at": { "type": ["string", "null"] },
+          "overdue_since": { "type": ["string", "null"] },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "digest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

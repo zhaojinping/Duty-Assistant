@@ -20,5 +20,10 @@ test = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# 声明与手写 Schema 随包分发（design.md §7.1：registry 声明是 payload 唯一权威，
+# 协议 Schema 随包）；缺这段时 wheel 里不会带 .toml/.json 数据文件。
+[tool.setuptools.package-data]
+records_kit = ["protocol/schemas/*.json", "registry/declarations/*.toml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
