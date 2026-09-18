@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """补充提取：脚注行（13-27）、数据有效性下拉、批注、隐藏行列。
 
-用法：python scripts/m0_extract_extra.py <模板目录>   （JSON 结果打到 stdout）
+用法：python scripts/m0_extract_extra.py <模板目录> [输出JSON路径]
+不给输出路径时打印到 stdout；给路径时写入文件（入仓用 scripts/m0/excel_extra.json）。
 目录从 CLI 参数读取（不硬编码机器路径）。
 """
 import json, sys, io
@@ -9,10 +10,11 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 from openpyxl import load_workbook
 from pathlib import Path
 
-if len(sys.argv) != 2:
+if len(sys.argv) not in (2, 3):
     print(__doc__)
     raise SystemExit(2)
 SRC = Path(sys.argv[1])
+OUT = Path(sys.argv[2]) if len(sys.argv) == 3 else None
 FILES = [
     ("breaker_trip_record", "断路器跳闸记录簿.xlsx"),
     ("surge_arrester_action_record", "避雷器动作记录簿.xlsx"),
@@ -62,4 +64,8 @@ for rt, fn in FILES:
         e["battery_prefill_seq"] = seqs
     out[rt] = e
 
-print(json.dumps(out, ensure_ascii=False, indent=1))
+if OUT is not None:
+    OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+    print("written", OUT)
+else:
+    print(json.dumps(out, ensure_ascii=False, indent=1))

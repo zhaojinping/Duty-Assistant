@@ -171,6 +171,175 @@
        null,
        null
       ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：断路器每次跳闸均应记录；接近“允许事故开闸次数”时重点跟踪。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
      }
     ]
    }
@@ -335,6 +504,162 @@
        null,
        null
       ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：避雷器动作后记录；每月核对计数器底数；非雷雨天气动作应检查上报。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
      }
     ]
    }
@@ -492,6 +817,162 @@
       "r": 12,
       "vals": [
        null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：交接班须交代使用中接地线及装设地点；工作票终结后应及时拆除。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
        null,
        null,
        null,
@@ -678,6 +1159,188 @@
       "r": 12,
       "vals": [
        null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：操作票按年编号装订、工作票按月编号装订，封面统计数字，保存期一年。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
        null,
        null,
        null,
@@ -888,6 +1551,214 @@
       "r": 12,
       "vals": [
        null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：定期测温；过负荷、高温天气、新投设备应加强测温。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
        null,
        null,
        null,
@@ -1111,6 +1982,214 @@
        null,
        null
       ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：按规程周期进行绝缘测试并记录。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
      }
     ]
    }
@@ -1250,6 +2329,156 @@
       "r": 12,
       "vals": [
        "8",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       "9",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       "10",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       "11",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       "12",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       "13",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       "14",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       "15",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       "16",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       "17",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       "18",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       "19",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       "20",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 26,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 27,
+      "vals": [
+       "填写说明：电池序号按实际数量增删；AI自动做电压一致性分析并标记落后电池、给更换建议。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
        null,
        null,
        null,
@@ -1423,6 +2652,175 @@
       "r": 12,
       "vals": [
        null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：定期测试主变铁芯及夹件接地电流；电流异常增大应安排停运检查。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
        null,
        null,
        null,
@@ -1607,6 +3005,175 @@
        null,
        null
       ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：保护及自动装置投退变更情况纳入交接班交代。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
      }
     ]
    }
@@ -1742,6 +3309,136 @@
       "r": 12,
       "vals": [
        null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：定期检查防小动物设施，孔洞封堵完好。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
        null,
        null,
        null,
