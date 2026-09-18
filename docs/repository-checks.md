@@ -16,6 +16,7 @@ python scripts/install_hooks.py
 
 1. 文件检查（`scripts/repo_guard.py`）
    - 隐私扫描：明文密钥赋值（名字含 key/token/secret/password 等词段，值为 8 字符以上 ASCII 字面量），覆盖三种常见形态——无引号键+引号值（Python/env）、JSON 引号键、无引号 YAML·env 裸标量；另有 token/私钥形态、个人绝对路径（`<盘>:\Users\<名>\`、`/home/<用户>/`、`/Users/<用户>/`）、文档署名（`署名：`/`作者：`/`author:`）。仅按完整占位格式放行：`xxxx-xxxx` 全 x 串、`<...>`、`${...}`、`{{ ... }}`、`your-...` 前缀及 changeme/example 等整词；值中间夹着占位词不豁免。
+   - 秘密扫描以 gitleaks 为主力（640+ 内置规则：云厂商、SaaS token、私钥、通用 API key + 熵分析），本地钩子扫描暂存增量，CI 全量扫描全部提交历史；占位符豁免集中在仓库根 `gitleaks.toml`（口径与 repo_guard 一致：仅整值占位放行，夹在真实值中间不放行）。repo_guard 保留为隐私/格式/署名层的补充。
    - 本地产物拦截：`.dev-flow`、`local-private`、`runtime`、`logs` 等目录，`.bak/.log/.tmp/.swp/.pyc` 后缀，文件名含 handover/receipt/交接/回执，以及 `*.local.*` 配置覆盖、`.env*`（`.env.example` 除外）、二进制数据文件（`.docx/.xlsx/.pdf/.db/.zip` 等，需单独审批）。
    - 语法检查：受跟踪 `.py` 文件 `ast.parse`，不执行被扫描模块。
    - 基础格式：`.py`/`.yml` 行尾空白、`.py`/`.md`/`.yml` 末尾换行。`.md` 不查行尾空白（Markdown 双空格换行是合法语法）。
@@ -30,8 +31,8 @@ python scripts/install_hooks.py
 
 ## 边界（如实声明）
 
-- 本地钩子可跳过（`git commit --no-verify`、取消 `core.hooksPath`），是便利措施不是安全边界；远程 CI 和受保护分支才是多人合并约束。
-- CI 是保守扫描，不是完整秘密扫描；提交者仍须人工检查 diff。
-- 人工审批（主控审核后才合并/关闭 Issue）是协作流程约定。GitHub 计划允许时再启用分支保护；配置 PR 和 CI 并不能单独保证只有主控能点合并。
+- 秘密扫描主体 gitleaks：本地钩子只扫暂存增量，提交历史由 CI 全量兜底；两者口径同源（`gitleaks.toml`）。扫描器缺失或不可执行时钩子 fail-closed（拒绝提交），不是悄悄放行。
+- 本地钩子仍可被 `--no-verify` 跳过——客户端钩子原理上无强制力。真正的合并约束在服务端：`main` 已启用分支保护（要求 `repo-check` 通过、禁止强推与删除分支），绕过钩子的提交进不了 `main`，或进了也会被 CI gitleaks 岗当场判红。主控保留 `gh pr merge --admin` 作为最后逃生口，用一次少一次。
+- CI 与钩子都是保守检查，不能替代人工看 diff；发现泄漏按密钥已泄漏处理（立即吊销轮换，而非删除提交了事——历史里删不掉）。
 
 CI 在 Windows 与 Ubuntu 上跑 Python 3.11/3.12。第三方 Action 钉 SHA。

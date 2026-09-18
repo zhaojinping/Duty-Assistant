@@ -1,0 +1,17 @@
+# Extends gitleaks' built-in rules (~640 detectors) with this repo's placeholder
+# exemptions. Full-value placeholder forms are allowed; placeholder words buried
+# inside an otherwise real-looking value are NOT exempted.
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+[extend]
+useDefault = true
+
+[allowlist]
+description = "intentional placeholder values only (full-value match)"
+regexes = [
+  '''(?i)^(changeme|example|sample|placeholder|dummy|synthetic|fake|demo|todo)$''',
+  '''(?i)^x{8,}([-._]x{4,})*$''',
+  '''(?i)^your[-_][a-z0-9_-]{2,64}$''',
+  '''^<[a-z0-9._ -]{1,64}>$''',
+  '''^\$\{[A-Za-z0-9_]{1,64}\}$''',
+  '''^\{\{[A-Za-z0-9_]{1,64}\}\}$''',
+]

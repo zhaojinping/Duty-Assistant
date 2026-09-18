@@ -2,3 +2,30 @@
 set -eu
 cd "$(git rev-parse --show-toplevel)"
 python scripts/repo_checks.py --staged
+
+# Fail closed: a missing scanner blocks the commit instead of waving it through.
+GITLEAKS="${GITLEAKS:-}"
+if [ -z "$GITLEAKS" ]; then
+  GITLEAKS="$(command -v gitleaks || true)"
+fi
+if [ -n "$GITLEAKS" ] && [ ! -x "$GITLEAKS" ]; then
+  echo "ERROR: GITLEAKS='$GITLEAKS' is not executable; commit blocked (fail-closed)." >&2
+  exit 1
+fi
+if [ -z "$GITLEAKS" ]; then
+  for candidate in \
+    "$LOCALAPPDATA/Microsoft/WinGet/Packages/Gitleaks.Gitleaks_Microsoft.Winget.Source_8wekyb3d8bbwe/gitleaks.exe" \
+    "/c/Program Files/gitleaks/gitleaks.exe"; do
+    if [ -x "$candidate" ]; then GITLEAKS="$candidate"; break; fi
+  done
+fi
+if [ -z "$GITLEAKS" ]; then
+  echo "ERROR: gitleaks not found; commit blocked (fail-closed)." >&2
+  echo "Install it: winget install Gitleaks.Gitleaks  (or set GITLEAKS=/path/to/gitleaks)" >&2
+  exit 1
+fi
+# Scan the staged diff (index vs HEAD). `gitleaks git --pre-commit` proved
+# unreliable on Windows (0 commits scanned, silent pass); piping the diff to
+# `stdin` is deterministic. git's own stderr warnings are discarded so they
+# cannot trip gitleaks' "stderr is not empty" check.
+git diff --cached --diff-filter=ACMR 2>/dev/null | "$GITLEAKS" stdin --redact -v
