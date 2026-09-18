@@ -1,0 +1,72 @@
+# 主变铁芯/夹件接地电流测试记录簿声明草案（M2 前置 · 批1/3 · flat）
+# 依据：docs/dsl-gap-list.md 定稿 §8 + §14 拍板（负荷情况改数值型）
+# 规则段 TODO 占位——待 M1 引擎接口冻结后转正；格式基准 docs/dsl/README.md
+
+[meta]
+record_type = "transformer_core_clamp_current_record"
+title = "主变铁芯/夹件接地电流测试记录簿"
+schema_version = "1.5"
+layout = "flat"
+dedupe_key = ["station", "occurred_day", "transformer_id"]
+link_types = []
+extra = "reject"
+signature_slots = ["测试人"]
+action_codes = ["CHECK_CORE_CURRENT_ABNORMAL", "ARRANGE_OUTAGE_INSPECTION"]
+escalate_after = 3
+
+[[fields]]
+key = "transformer_id"
+name = "主变编号"
+type = "text"
+required = true                     # dedupe_key + trend 分组键
+
+[[fields]]
+key = "core_current"
+name = "铁芯接地电流"
+type = "number"
+unit = "mA"
+min = 0.0                           # 上限限值待现场规程（§14）
+required = true
+
+[[fields]]
+key = "clamp_current"
+name = "夹件接地电流"
+type = "number"
+unit = "mA"
+min = 0.0                           # 上限限值待现场规程（§14）
+required = true
+
+[[fields]]
+key = "load_condition"
+name = "负荷情况"
+type = "number"
+unit = "%"
+min = 0.0
+max = 100.0
+required = false                    # §14 拍板：改数值型（负荷率 %），原文字/枚举口径作废
+
+[[fields]]
+key = "vs_last_note"
+name = "与上次对比"
+type = "text"
+required = false                    # 人工版趋势结论，与 trend 判定双源（GAP-H6）
+
+[[fields]]
+key = "conclusion"
+name = "结论"
+type = "enum"
+options = ["正常", "异常"]          # 建议集；选项集待现场定（§14 未拍，随现场核对）
+required = true
+
+# ---- 规则段（TODO：待 M1 引擎接口冻结后补）----
+# TODO rules:
+#   - id: current_limit
+#     kind: limit / tier: 1
+#     expr: lte:上限 ×2（core_current / clamp_current，数值待现场 §14）
+#   - id: current_trend
+#     kind: trend（source=core_current / clamp_current，按 transformer_id 序列）
+#     drop_warn 口径、比较基准、阈值均属主设 §12 待定（GAP-H6 双源核对算子待 M2）
+# ---- 周期段（TODO）----
+# TODO cycle:
+#   - periodic:30d                              # 每月一次（制度出处：汇编2023版六、定期试验轮换设备表 序 6，已有）
+#     cycle_baseline = ?                        # missing 判定起算日待现场（§12）
