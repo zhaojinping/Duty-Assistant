@@ -12,7 +12,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / 'scripts' / 'm0' / 'excel_struct.json'
-DRAFT = ROOT / 'docs' / 'dsl-gap-list-draft.md'
+# 定稿自 #10 起改名 dsl-gap-list.md；过渡期回退兼容 draft 名
+DRAFT = ROOT / 'docs' / 'dsl-gap-list.md'
+if not DRAFT.exists():
+    DRAFT = ROOT / 'docs' / 'dsl-gap-list-draft.md'
 
 # draft 各节标题里的 record_type 与快照键的对应（按节顺序）。
 SECTION_KEYS = [
