@@ -84,6 +84,7 @@
         "digest": { "type": "string" },
         "fields": { "type": "object" },
         "confirmed_fields": { "type": "object" },
+        "confirmed_rev": { "type": "integer", "minimum": 1 },
         "dedupe_key_values": { "type": "object" }
       }
     },
