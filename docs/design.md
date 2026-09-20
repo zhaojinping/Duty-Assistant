@@ -13,6 +13,8 @@
 
 > **修订 B（2026-09-20）**：依据定稿 §4 粒度核对（一行=一票）与 M0 终审保留项②：**§7.4 两票 layout 由 `item_list` 修正为 `flat`**；连续性判定从 `ledger_view` 行 fields 取值（与 layout 无关），按票种分组、复位周期（工作票按月/操作票按年）随 GAP-E4 落声明。受影响条款：§7.4 两票行。
 
+> **修订 C（2026-09-20，M2 收口同步）**：文法扩展终稿（PR #29）与 trend 口径拍板（#28 评论）并入：§7.3（`when` 值侧前缀微文法 + `kind="condition"` + `monotonic` 算子 + trend 口径）、§7.4 避雷器/跳闸行、§12 待定项收敛。受影响条款：§7.3 四行、§7.4 两行、§12 两条。
+
 ## 1. 背景与目标
 
 围绕 **10 类**运行值班记录（断路器跳闸、避雷器动作、接地线装拆、两票登记、设备测温、绝缘测试、蓄电池电压测试、主变铁芯夹件电流测试、保护投退、防小动物检查），构建一个**全新、独立**的工具包。
@@ -271,20 +273,21 @@ drop_warn = 0.10
 |---|---|---|---|
 | **T1 表内数值** | 本记录 payload 单字段 | `periodic:Nd` `monthly` `quarterly`（三者仅供探针，见豁免注） `band:lo,hi` `gt/gte/lt/lte:v` | 电压带、浮充电压上限、蓄电池周期（periodic:30d，探针执行）；`quarterly` 现存 10 类暂无用例（算子保留，留给后续增补记录） |
 | **T2 表内派生** | 本记录多字段/条目间 | `ratio:num,den,lo,hi` `deviation:baseline,pct` `date_diff:from,to,le:Nd`（同记录内两日期） `diff:a,b,ge/le:N`（差值） | 吸收比 R60s/R15s、落后电池偏差、接地线条目内装-拆间隔、测温温升/温差 |
-| **T3 台账/跨记录** | `ledger_view` / `links` / `baselines` | `continuity` `pairing:type[,key=字段]`（配对键） `external_baseline:ref` `recovery_within:Nd` `date_diff`（跨记录） `aggregate:count_over,reset_ref`（聚合，语义随 M0 缺口清单定稿） | 两票编号连续性、接地线配对（键=接地线编号）、保护投退配对（键=装置功能）、跳闸次数逼近允许值（聚合+基线） |
+| **T3 台账/跨记录** | `ledger_view` / `links` / `baselines` | `continuity` `pairing:type[,key=字段]`（配对键） `external_baseline:ref` `recovery_within:Nd` `date_diff`（跨记录） `aggregate:count_over,reset_ref`（聚合，**`reset_ref` 缺省不复位——A2/B1 已拍板**） `monotonic:op=ge[,key=字段]`（跨记录单调，2026-09-20 定） | 两票编号连续性、接地线配对（键=接地线编号）、保护投退配对（键=装置功能）、跳闸次数逼近允许值（聚合+基线） |
 
 - **周期规则补"漏做"**：纯函数 `cycle_status(ledger_view, now, registry)` 输出 `due / overdue / missing`。"做过"按 §8.3 版本行语义判定——**记录非 voided 且存在 confirmed/archived 版本**（confirmed 后被作废的记录不算"做过"），correct 并存窗口不产生假"漏做"。触发调度归壳层。
-- **`when` 条件**：当前仅支持字段等值匹配；缺口三类（**否定、比较、日历窗口**——如防小动物"雨季/秋季重点期"）进 M0 缺口清单核对后扩展。
-- **`trend.source` 文法**：`agg(field_path)`，`agg ∈ {min, max, avg, count, last}`；`field_path` 须为声明中存在的字段（items 字段或顶层字段）；meta-test 校验 agg 白名单与字段存在性。
+- **`when` 条件**（2026-09-20 扩展定稿）：值侧前缀微文法（与 `expr` 同源）——`"not_in:A,B"` 等前缀算子表达否定/集合不匹配；新增条件型规则 `kind="condition"`（未命中输出 pass 条目）；条目字段沿用**存在量词**（`items.x` 表示「存在一条目满足」）。比较/日历窗口类（防小动物"雨季/秋季重点期"）保留后续排期。
+- **`trend.source` 文法**：`agg(field_path)`，`agg ∈ {min, max, avg, count, last}`；`field_path` 须为声明中存在的字段（items 字段或顶层字段）；meta-test 校验 agg 白名单与字段存在性。**（trend 口径已定，2026-09-20）**：基准=**窗口首值**；相对比 `drop_warn`（零基准配可选 `drop_abs`，两者互斥则声明报错）；判定 `≥` 含等于（`dropping`=warn / `stable`=info）；可选 `group = "<顶层字段>"` 隔离序列（缺省不分组；主变 `group = "transformer_id"`）；窗口不足或取不到值 → `insufficient_history`（info，evidence 注明 n/window）。
 - **pairing 配对键**：`pairing:type[,key=字段]` 按声明键配对（接地线→接地线编号；投退→装置功能）；**重复占用**（同键未拆/未退又新增）由 pairing 规则告警；悬空半边在探针 `cycle[].detail` 输出。
-- **external_baseline 数据形态**：随 M0 缺口清单定稿（现存用户仅剩跳闸次数表的数值型基线）。
+- **external_baseline 数据形态**：**已定**——keyed-by-device 数值型基线表（现存用户=跳闸次数表，A2/B1 拍板）。
+- **`monotonic` 跨记录算子**（2026-09-20 定）：按月核对底数类单调性（避雷器计数器等）；`op=` 具名、缺省 `ge`（含等于，倒退→warn）；`key` 可选（同站同类型单序列可省略）；跳过 voided 行、取最后已确认版、排除自身 correct 链——六边界例为建设必测。
 
 ### 7.4 10 类记录清单
 
 | record_type | 标题 | layout | 签字栏 | 关键规则（层） |
 |---|---|---|---|---|
-| breaker_trip_record | 断路器跳闸记录簿 | flat | 记录人 | 跳闸次数逼近允许开闸次数（T3, aggregate+external_baseline，算子语义随 M0 定稿） |
-| surge_arrester_action_record | 避雷器动作记录簿 | flat | 记录人 | 非雷雨天气动作→warn（T1 条件，when 表达力见 §7.3） |
+| breaker_trip_record | 断路器跳闸记录簿 | flat | 记录人 | 跳闸次数逼近允许开闸次数（T3, aggregate+external_baseline，`reset_ref` 缺省不复位） |
+| surge_arrester_action_record | 避雷器动作记录簿 | flat | 记录人 | 非雷雨天气动作→warn（T1 条件 `non_storm_action`：when 值侧前缀）；计数器倒退→warn（T3 `counter_monotonic`，键=相别+安装位置） |
 | grounding_wire_record | 接地线装拆记录簿 | flat（修订A：一行一动作） | 操作人、监护人 | 装拆配对（T3, pairing 键=接地线编号，含重复占用）；拆除超时（T3：link 工作票跨记录 date_diff）；装-拆间隔（T3 跨记录 date_diff，修订A：不再走条目内 T2） |
 | two_ticket_ledger | 两票登记台账 | flat（修订B：一行=一票） | 许可人、签发人 | 编号连续性（T3, continuity：按票种分组、复位周期 工作票按月/操作票按年——E4；从 ledger_view 行 fields 取值） |
 | infrared_thermography_record | 设备测温（红外）记录簿 | item_list | 记录人 | 温升/温差等级（**T2**, diff）；测点必附红外图（require_attachment） |
@@ -408,5 +411,5 @@ alarm_ack：适用于任意非 voided 记录；不改 fields、不加 rev（告�
 - `cycle_baseline`（missing 判定起算日）按记录类型在声明中配置，具体取值待现场规程核对。
 - 各限值业务数值（电压带、电流限值、周期天数、恢复时限）为声明数据，实施时以现场规程核对为准，本文档不给业务数值。
 - archived 记录的冲正流程（壳层侧）不在本包范围，接口预留 `E_STATE_ILLEGAL` 语义。
-- `aggregate` 算子的复位参照语义、`external_baseline` 数据形态、`when` 三类扩展文法、性能预算值：随 M0 缺口清单定稿。
-- **trend 判定算法**：`drop_warn` 口径（绝对差值 or 相对比）、比较基准（window 首值/上一值/均值）、`stable/dropping` 判定阈值：随 M0 定稿。
+- `aggregate` 复位参照语义、`external_baseline` 数据形态、`when` 扩展文法、性能预算值：**均已定（2026-09-20）**——`reset_ref` 缺省不复位；基线=keyed-by-device；`when`=值侧前缀微文法 + `kind="condition"`；性能 P1 p95≤200ms（M1 实测 ≈72ms）。
+- **trend 判定算法**：**已定（2026-09-20）**——基准=窗口首值；相对比 `drop_warn`（零基准配 `drop_abs`，互斥报错）；`≥` 含等于；`group` 分组可选；见 §7.3 trend 注。（各 metric 阈值数值仍为现场口径。）
