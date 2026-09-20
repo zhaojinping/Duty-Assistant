@@ -1,7 +1,7 @@
 """§10.2 声明自检（meta-test）：好声明可加载，坏声明一律拒绝加载。
 
 覆盖：TOML 解析、引用完整性（字段 / items.key_field / 规则 target / trend source /
-action_codes / link_types / dedupe_key）、DSL 表达式文法、M1 的层收窄（T3 归 M2）。
+action_codes / link_types / dedupe_key）、DSL 表达式文法、层的边界（T1/T2/T3 算子白名单）。
 """
 
 from __future__ import annotations
@@ -215,7 +215,7 @@ def test_flat_declaration_without_items_loads(synthetic_registry):
         ),
         (
             {"rules": [{"id": "r", "kind": "limit", "tier": 3, "target": "items.voltage", "expr": "band:1,2"}]},
-            "M2",
+            "未知 T3 算子",
         ),
         ({"rules": [{"id": "r", "kind": "cycle", "tier": 1, "expr": "every:30d"}]}, "周期表达式"),
         (
