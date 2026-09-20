@@ -278,9 +278,13 @@ def _archive(envelope: dict, declaration, ledger_view: dict) -> LifecycleResult:
     confirmed_fields = row.get("confirmed_fields")
     if confirmed_fields is not None:
         # correct 并存窗口：archive 目标=**最后确认版**（修订A 拍板，§8.3）
-        if subject_rev not in (row_rev, row_rev - 1):
-            raise reject("subject.rev", E_REV_CONFLICT, "并存窗口内只能归档最后确认版")
-        target_rev = row_rev - 1
+        # 版本口径（2026-09-20 拍板·方案A）：优先读行内 confirmed_rev（最后已确认版 rev，
+        # 多轮 correct 下仍准确）；缺失（兼容期）退回 row_rev - 1 兜底（单轮 correct 等价）。
+        confirmed_rev = row.get("confirmed_rev")
+        last_confirmed_rev = row_rev - 1 if confirmed_rev is None else int(confirmed_rev)
+        if subject_rev not in (row_rev, last_confirmed_rev):
+            raise reject("subject.rev", E_REV_CONFLICT, "并存窗口内只能归档最后确认版（subject.rev 应为 row_rev 或 confirmed_rev）")
+        target_rev = last_confirmed_rev
         fields = confirmed_fields
         occurred_at = row.get("occurred_at")
         if not isinstance(occurred_at, str):

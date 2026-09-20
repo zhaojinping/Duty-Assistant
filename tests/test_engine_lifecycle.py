@@ -510,6 +510,77 @@ def test_archive_targets_the_requested_rev_in_the_window(helpers):
     assert result["record"]["fields"] == confirmed_fields
 
 
+def test_archive_after_multiple_corrects_uses_confirmed_rev(helpers):
+    """多轮 correct（rev=3、confirmed_rev=1）：归档版本号须取行内 confirmed_rev，而非位置推断（方案A）。"""
+    record = create(helpers)
+    confirmed_fields = record["fields"]
+    draft_fields = helpers.battery_payload(items=[{"cell_no": 1, "voltage": 2.19}])
+    row = helpers.ledger_row(
+        record["record_uid"],
+        rev=3,
+        lifecycle="confirmed",
+        fields=draft_fields,
+        confirmed_fields=confirmed_fields,
+        confirmed_rev=1,
+    )
+    ok = run(
+        helpers,
+        "archive",
+        subject={"record_uid": record["record_uid"], "lifecycle": "confirmed", "rev": 3},
+        archive_ref="ARCHIVE-0005",
+        archived_by="张三",
+        ledger_view=helpers.ledger_view([row]),
+    )
+    assert ok["status"] == "ok", ok["validation"]
+    assert ok["record"]["rev"] == 1
+    assert ok["record"]["fields"] == confirmed_fields
+    assert ok["record"]["digest"] == compute_digest("ST001", BATTERY, helpers.OCCURRED, "1.5", confirmed_fields)
+
+    # 显式指向 confirmed_rev 亦可
+    ok2 = run(
+        helpers,
+        "archive",
+        subject={"record_uid": record["record_uid"], "lifecycle": "confirmed", "rev": 1},
+        archive_ref="ARCHIVE-0006",
+        archived_by="张三",
+        ledger_view=helpers.ledger_view([row]),
+    )
+    assert ok2["status"] == "ok", ok2["validation"]
+    assert ok2["record"]["rev"] == 1
+
+    # 判别性关键用例：位置推断旧值（row_rev-1=2）不再放行
+    stale = run(
+        helpers,
+        "archive",
+        subject={"record_uid": record["record_uid"], "lifecycle": "confirmed", "rev": 2},
+        archive_ref="ARCHIVE-0007",
+        archived_by="张三",
+        ledger_view=helpers.ledger_view([row]),
+    )
+    assert ("E_REV_CONFLICT", "subject.rev") in codes(stale)
+
+
+def test_archive_window_without_confirmed_rev_keeps_legacy_fallback(helpers):
+    """兼容路径：行未带 confirmed_rev 时维持 row_rev-1 兜底（单轮 correct 等价）。"""
+    record = create(helpers)
+    confirmed_fields = record["fields"]
+    draft_fields = helpers.battery_payload(items=[{"cell_no": 1, "voltage": 2.19}])
+    row = helpers.ledger_row(
+        record["record_uid"], rev=2, lifecycle="confirmed", fields=draft_fields, confirmed_fields=confirmed_fields
+    )
+    result = run(
+        helpers,
+        "archive",
+        subject={"record_uid": record["record_uid"], "lifecycle": "confirmed", "rev": 2},
+        archive_ref="ARCHIVE-0008",
+        archived_by="张三",
+        ledger_view=helpers.ledger_view([row]),
+    )
+    assert result["status"] == "ok", result["validation"]
+    assert result["record"]["rev"] == 1
+    assert result["record"]["fields"] == confirmed_fields
+
+
 def test_archive_in_window_without_occurred_at_is_refused(helpers):
     record = create(helpers)
     row = helpers.ledger_row(record["record_uid"], rev=2, lifecycle="confirmed", occurred_at=None, confirmed_fields=record["fields"])

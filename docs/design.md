@@ -366,7 +366,7 @@ alarm_ack：适用于任意非 voided 记录；不改 fields、不加 rev（告�
 - `cycle_status`"计入做过"按**记录非 voided 且存在 confirmed/archived 版本**判定——correct 并存窗口不产生假"漏做"，confirmed→voided 的记录不遮掩也不虚报；
 - **两类查重视图口径**：业务判重（`E_DUP_KEY`）对**非 voided** 行（作废让位，voided 行不占业务键）；uid 查重（`E_DUP_UID`）对**含 voided 墓碑的完整视图**（墓碑占号）。
 
-**correct 并存窗口取值口径（修订A 已拍板）**：定稿更正后、新版签认前，账本行的 `lifecycle`（最高完成态=confirmed）与 `rev/fields`（最新版=draft 新版）来自不同版本——T3 规则（continuity/pairing 等）若从该行 `fields` 取值，会消费**未签认**数据。**拍板结论：ledger_view 行结构增设 `confirmed_fields`（最后已确认版字段投影），T3 默认取 `confirmed_fields`；该窗口内 `archive` 目标=最后确认版**。`aggregate:count_over` 增 `reset_ref` 声明（缺省不复位）；允许事故开闸次数表为 keyed-by-device 形态。
+**correct 并存窗口取值口径（修订A 已拍板）**：定稿更正后、新版签认前，账本行的 `lifecycle`（最高完成态=confirmed）与 `rev/fields`（最新版=draft 新版）来自不同版本——T3 规则（continuity/pairing 等）若从该行 `fields` 取值，会消费**未签认**数据。**拍板结论：ledger_view 行结构增设 `confirmed_fields`（最后已确认版字段投影），T3 默认取 `confirmed_fields`；该窗口内 `archive` 目标=最后确认版**。**版本口径（2026-09-20 拍板·方案A）**：行结构另增**可选** `confirmed_rev`（最后已确认版 rev，与 `confirmed_fields` 配对）；`archive` 目标版优先取行内 `confirmed_rev`、缺失时兼容兜底 `row_rev−1`；`subject.rev` 校验放宽为 ∈{row_rev, confirmed_rev}——多轮 correct 下不再依赖位置推断。`aggregate:count_over` 增 `reset_ref` 声明（缺省不复位）；允许事故开闸次数表为 keyed-by-device 形态。
 
 历史与告警同理：`history`（§5.1）、`alarm_history`（§6.2）、`baselines`（§5）行/数据结构已各自钉死或随 M0 定稿；meta-test 校验各视图完整性。
 

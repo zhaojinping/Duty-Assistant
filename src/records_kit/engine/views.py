@@ -69,6 +69,7 @@ LEDGER_ROW_KEYS = (
     "digest",
     "fields",
     "confirmed_fields",
+    "confirmed_rev",
     "dedupe_key_values",
     "links",
 )
@@ -96,6 +97,11 @@ def _check_row(row: object, path: str, errors: Collector) -> None:
     for optional_obj in ("confirmed_fields", "dedupe_key_values"):
         if row.get(optional_obj) is not None and not isinstance(row[optional_obj], dict):
             errors.add(f"{path}.{optional_obj}", E_TYPE, f"{path}.{optional_obj} 必须是对象")
+    confirmed_rev = row.get("confirmed_rev")
+    if confirmed_rev is not None and (
+        not isinstance(confirmed_rev, int) or isinstance(confirmed_rev, bool) or confirmed_rev < 1
+    ):
+        errors.add(f"{path}.confirmed_rev", E_TYPE, "confirmed_rev 必须是从 1 起的整数")
 
 
 def history(envelope: dict, declaration) -> list[dict]:
