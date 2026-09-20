@@ -40,13 +40,14 @@ def test_bundle_covers_every_record_type():
 
 
 @pytest.mark.parametrize("path", golden_files(), ids=lambda path: path.stem)
-def test_golden_inputs_pass_generated_schema(path, declaration):
+def test_golden_inputs_pass_generated_schema(path):
     sample = json.loads(path.read_text(encoding="utf-8"))
     payload = sample["envelope"].get("payload")
     if not payload or sample["envelope"]["operation"] != "create":
         pytest.skip("仅校验 create 样本的 payload")
     if sample["expect"]["status"] != "ok":
         pytest.skip("负样本（期望 rejected）：其 payload 本就应被生成 Schema 拒绝")
+    declaration = default_registry()[sample["envelope"]["record_type"]]   # 按样本类型取声明（10 类时代）
     schema = payload_schema(declaration)
     problems = check_instance(payload, schema)
     assert problems == [], problems
