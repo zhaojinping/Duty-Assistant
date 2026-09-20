@@ -1,14 +1,14 @@
-# 两票（工作票/操作票）登记记录簿声明草案（M2 前置 · 批3/3 · flat 建议待确认）
-# 依据：docs/dsl-gap-list.md 定稿 §4 + §14 拍板（列9=单票合格评价；E4 分组复位口径确认）
-# 规则段 TODO 占位——待 M1 引擎接口冻结后转正；格式基准 docs/dsl/README.md
-# 注意：layout 定稿建议由 item_list 改 flat（一行=一票），与主设 §7.4 原标不一致——
-#       按定稿建议落 flat，此为声明层确认动作（主设 §7.4 同步修订随 M2）。
+# 两票（工作票/操作票）登记记录簿声明（M2 转正批3 · flat）
+# 转正自 docs/dsl/two_ticket_ledger.toml（依据 docs/dsl-gap-list.md 定稿 §4 + §14 拍板）
+# 说明：layout 按定稿建议落 flat（一行=一票）；E4 复位周期差异（工作票按月/操作票按年）
+#       用 when 区分的双 continuity 规则表达（#20 冻结文法的 reset 为单值，双规则各管一票种）；
+#       ticket_duration_check 时长限值 Nd 待现场，TODO 保留。
 
 [meta]
 record_type = "two_ticket_ledger"
 title = "两票（工作票/操作票）登记记录簿"
 schema_version = "1.5"
-layout = "flat"                     # 定稿建议：一行=一票；连续性从 ledger_view 行 fields 取值，与 layout 无关
+layout = "flat"                     # 定稿建议：一行=一票
 dedupe_key = ["station", "ticket_kind", "ticket_no"]
 link_types = ["references"]         # 被接地线等记录引用（references 入边，本类不外链）
 extra = "reject"
@@ -21,7 +21,7 @@ key = "ticket_kind"
 name = "票种"
 type = "enum"
 options = ["工作票", "操作票"]
-required = true                     # continuity 分组键；复位周期不同（工作票按月/操作票按年，§14 确认）
+required = true                     # continuity 分组键
 
 [[fields]]
 key = "ticket_no"
@@ -51,7 +51,7 @@ required = true
 key = "end_at"
 name = "结束时间"
 type = "datetime"
-required = false                    # 未终结可空（GAP-H1 条件可空+回填，M1 接口定稿后启用）
+required = false                    # 未终结可空（GAP-H1 条件可空+回填，接口定稿后启用）
 
 [[fields]]
 key = "evaluation"
@@ -60,16 +60,31 @@ type = "enum"
 options = ["合格", "不合格"]        # §14 拍板：单票合格评价进 payload；月度合格率归 aggregate 派生
 required = false
 
-# ---- 规则段（TODO：待 M1 引擎接口冻结后补）----
+# ---- 规则段：#20 冻结文法转正（E4：工作票按月/操作票按年，when 区分双规则）----
+
+[[rules]]
+id = "ticket_continuity_monthly"
+kind = "limit"
+tier = 3                            # T3 台账编号连续性（工作票）
+expr = "continuity:ticket_no,group=ticket_kind,reset=monthly"
+when = { ticket_kind = "工作票" }
+level = "alarm"
+action = "WARN_TICKET_NO_GAP"
+
+[[rules]]
+id = "ticket_continuity_yearly"
+kind = "limit"
+tier = 3                            # T3 台账编号连续性（操作票）
+expr = "continuity:ticket_no,group=ticket_kind,reset=yearly"
+when = { ticket_kind = "操作票" }
+level = "alarm"
+action = "WARN_TICKET_NO_GAP"
+
+# ---- 待现场项（TODO 保留，勿虚构数值）----
 # TODO rules:
-#   - id: no_continuity
-#     kind: continuity / tier: 3
-#     expr: continuity:ticket_no,group=ticket_kind,reset=monthly|yearly
-#     # 工作票 reset=monthly / 操作票 reset=yearly（脚注+§14 确认）；差异复位周期的声明表达待 M1 文法定稿
-#     action: WARN_TICKET_NO_GAP                    # 编号跳号告警；编号段解析格式待现场（GAP-E4）
 #   - id: ticket_duration_check
-#     kind: date_diff / tier: 2（同记录内两日期）
-#     expr: date_diff:start_at,end_at,le:Nd         # 票时长校验（含倒挂拒绝）；Nd 待现场
+#     kind = "limit" / tier = 2（同记录内两日期）
+#     expr = "date_diff:start_at,end_at,le:Nd"   # 票时长校验（含倒挂拒绝）；Nd 待现场
 # ---- 周期段 ----
 # 无周期（事件触发型）。归档口径：保存期一年（操作票按年装订/工作票按月装订，封面统计数字，
 # 出处汇编2023版 §6.2.2/§6.3.1）——属壳层归档策略，不入声明。

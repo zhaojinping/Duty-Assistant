@@ -1,0 +1,60 @@
+{
+ "name": "two-ticket-01-create-operation",
+ "record_type": "two_ticket_ledger",
+ "note": "合成样本（synthetic，占位站/人名）",
+ "envelope": {
+  "protocol": "records-kit",
+  "protocol_version": "1.5",
+  "operation": "create",
+  "record_type": "two_ticket_ledger",
+  "station": {
+   "station_id": "ST001",
+   "station_name": "XX风电场"
+  },
+  "occurred_at": "2026-09-20T08:00:00+08:00",
+  "now": "2026-09-20T11:00:00+08:00",
+  "create_seq": 1,
+  "submitted_by": "张三",
+  "payload": {
+   "ticket_kind": "操作票",
+   "ticket_no": "操2026-0001（合成）",
+   "task": "351开关柜检修操作（合成）",
+   "person_in_charge": "李四（合成）",
+   "start_at": "2026-09-20T07:30:00+08:00"
+  }
+ },
+ "expect": {
+  "status": "ok",
+  "record": {
+   "record_uid": "ST001-two_ticket_ledger-20260920-0800-1",
+   "rev": 1,
+   "lifecycle": "draft",
+   "signature_slots": [
+    {
+     "slot": "许可人",
+     "state": "pending"
+    },
+    {
+     "slot": "签发人",
+     "state": "pending"
+    }
+   ],
+   "links": []
+  },
+  "rules": [
+   {
+    "rule_id": "ticket_continuity_yearly",
+    "kind": "limit",
+    "tier": 3,
+    "verdict": "pass"
+   }
+  ],
+  "alarm_state": {
+   "state": null,
+   "suppressed": false,
+   "evidence_contains": "无 alarm 级违规"
+  },
+  "actions_hint": [],
+  "cycle": null
+ }
+}
