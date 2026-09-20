@@ -1,0 +1,39 @@
+{
+  "name": "ir-create-thermography",
+  "record_type": "infrared_thermography_record",
+  "note": "合成样本（synthetic，占位站/人名）：一次例行测温两测点，δt/相间温差人工报数（F1 拍板），缺陷判定正常 → 无流水线告警；限值/分级规则未转正（数值待现场）→ rules 空",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "create",
+    "record_type": "infrared_thermography_record",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "occurred_at": "2026-09-20T07:50:00+08:00",
+    "now": "2026-09-20T08:30:00+08:00",
+    "create_seq": 1,
+    "submitted_by": "张三",
+    "payload": {
+      "test_kind": "例行",
+      "env_temp": 22.0,
+      "load_current": 180.0,
+      "items": [
+        { "spot_no": 1, "device_name": "主变A相套管（合成占位）", "spot": "接头处", "measured_temp": 45.0, "phase_temp_diff": 1.5, "delta_t": 6.0, "defect_grade": "正常", "instrument_id": "IR-02（合成占位）" },
+        { "spot_no": 2, "device_name": "主变B相套管（合成占位）", "spot": "接头处", "measured_temp": 44.0, "phase_temp_diff": 0.5, "delta_t": 4.0, "defect_grade": "正常", "instrument_id": "IR-02（合成占位）" }
+      ]
+    }
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "record_uid": "ST001-infrared_thermography_record-20260920-0750-1",
+      "rev": 1,
+      "lifecycle": "draft",
+      "signature_slots": [{ "slot": "记录人", "state": "pending" }],
+      "links": []
+    },
+    "rules": [],
+    "alarm_state": { "state": null, "suppressed": false, "evidence_contains": "无 alarm 级违规" },
+    "actions_hint": [],
+    "cycle": null
+  }
+}

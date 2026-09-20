@@ -1,0 +1,115 @@
+# 设备测温（红外检测）记录簿声明（M2 转正批4 · item_list）
+# 依据：docs/dsl-gap-list.md 定稿 §5（字段表）+ §13 拍板（F1：δt% 人工报数起步）
+# 说明：δt% 人工报数（F1 拍板）；δt/温升限值与分级阈值待现场（§14）→ 规则段留 TODO；
+#       require_attachment（GAP-H5 条目附件绑定）待信封接口定稿后启用
+# 格式基准：docs/design.md §7.2（蓄电池示例）
+
+[meta]
+record_type = "infrared_thermography_record"
+title = "设备测温（红外检测）记录簿"
+schema_version = "1.5"
+layout = "item_list"                # 逐条测量：一行 = 一测点，一次测温多测点 = 一记录多条目
+dedupe_key = ["station", "occurred_day", "test_kind"]   # test_kind 区分例行/加强测温
+link_types = []
+extra = "reject"
+signature_slots = ["记录人"]
+action_codes = ["REPORT_DEFECT", "REMEASURE_SPOT", "ARRANGE_THERMOGRAPHY"]
+escalate_after = 3
+
+[[fields]]
+key = "test_kind"
+name = "测温性质"
+type = "enum"
+options = ["例行", "过负荷加强", "高温天气加强", "新投设备加强"]   # 脚注四种口径；待现场确认
+required = false
+
+[[fields]]
+key = "env_temp"
+name = "环境温度"
+type = "number"
+unit = "℃"
+required = true                     # δt 公式的 T0（GAP-F2 关联）
+
+[[fields]]
+key = "load_current"
+name = "负荷电流"
+type = "number"
+unit = "A"
+min = 0.0
+required = false                    # DL/T 664 分级与负荷率相关，可空
+
+[items]
+key_field = "spot_no"
+
+[[items.fields]]
+key = "spot_no"
+name = "测点序号"
+type = "number"
+decimals = 0
+required = true
+
+[[items.fields]]
+key = "device_name"
+name = "设备名称"
+type = "text"
+required = true
+
+[[items.fields]]
+key = "spot"
+name = "测点部位"
+type = "text"
+required = true
+# require_attachment = "photo"      # GAP-H5：每测点必附红外图——附件绑定到条目的机制待 M1 信封/校验接口定稿后启用
+
+[[items.fields]]
+key = "measured_temp"
+name = "实测温度"
+type = "number"
+unit = "℃"
+required = true                     # 上下限限值待现场规程（§14）
+
+[[items.fields]]
+key = "phase_temp_diff"
+name = "相间温差"
+type = "number"
+unit = "K"
+required = false                    # GAP-F2：需"条目间选基准相"语义，非简单 diff:a,b
+
+[[items.fields]]
+key = "delta_t"
+name = "相对温差δt"
+type = "number"
+unit = "%"
+min = 0.0
+max = 100.0
+required = false                    # F1 已拍板：人工报数起步（§13）；派生字段机制列 M2 扩展
+
+[[items.fields]]
+key = "defect_grade"
+name = "缺陷判定"
+type = "enum"
+options = ["正常", "一般缺陷", "严重缺陷", "危急缺陷"]   # F3 建议四级；阈值来源待现场（§14）
+required = false
+
+[[items.fields]]
+key = "instrument_id"
+name = "仪器编号"
+type = "text"
+required = true
+
+# ---- 规则段（TODO：待 M1 引擎接口冻结后补）----
+# TODO rules:
+#   - id: temp_rise
+#     kind: limit / tier: 2
+#     expr: diff:measured_temp,env_temp,le:N      # 温升=实测−环境，N 待现场
+#   - id: delta_t_check
+#     kind: limit / tier: 1
+#     expr: band:0,δt上限                         # 人工报数值带；分级阈值 DL/T 664 表 or 现场规程（GAP-F3）
+#     action: REPORT_DEFECT
+#   - id: defect_grade_check
+#     kind: (待定)                                # 分级与 δt/温升的一致性核对
+# ---- 周期段（TODO）----
+# TODO cycle:
+#   - periodic:Nd                                # 定期测温；N 待现场（制度汇编无周期数值条款）
+#     cycle_baseline = ?                         # 待现场（§12）
+#   - 加强测温触发（过负荷/高温/新投）= when 日历/比较窗口 → GAP-C3（弱需求，随 M0 扩展评估）
