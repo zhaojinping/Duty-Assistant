@@ -1,0 +1,36 @@
+{
+  "name": "rodent-create-clean",
+  "record_type": "rodent_proof_check_record",
+  "note": "合成样本（synthetic，占位站/人名）：一次检查两部位（配电室/电缆沟），均无问题（issue_found 留空）→ 无流水线告警；纯条目类，根级 fields=[]；日历窗口规则未转正 → rules 空",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "create",
+    "record_type": "rodent_proof_check_record",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "occurred_at": "2026-09-20T08:40:00+08:00",
+    "now": "2026-09-20T09:00:00+08:00",
+    "create_seq": 1,
+    "submitted_by": "张三",
+    "payload": {
+      "items": [
+        { "spot": "配电室", "issue_found": "" },
+        { "spot": "电缆沟", "issue_found": "" }
+      ]
+    }
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "record_uid": "ST001-rodent_proof_check_record-20260920-0840-1",
+      "rev": 1,
+      "lifecycle": "draft",
+      "signature_slots": [{ "slot": "检查人", "state": "pending" }],
+      "links": []
+    },
+    "rules": [],
+    "alarm_state": { "state": null, "suppressed": false, "evidence_contains": "无 alarm 级违规" },
+    "actions_hint": [],
+    "cycle": null
+  }
+}
