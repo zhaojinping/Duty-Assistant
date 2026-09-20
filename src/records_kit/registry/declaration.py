@@ -18,8 +18,12 @@ LAYOUTS = ("flat", "item_list")
 EXTRA_MODES = ("reject", "allow")
 RULE_KINDS = ("cycle", "limit")
 RULE_LEVELS = ("warn", "alarm")
-# M1 支持的层：T3（台账/跨记录）随 M2 引擎扩展
-SUPPORTED_TIERS = (1, 2)
+# M2 起支持三层：T1（表内单字段）/ T2（表内派生）/ T3（台账/跨记录）
+SUPPORTED_TIERS = (1, 2, 3)
+# T3 专用算子（design.md §7.3）：date_diff 为 T2/T3 共用，不在此列
+T3_OPS = ("continuity", "pairing", "external_baseline", "recovery_within", "aggregate")
+# pairing 配对类型（§7.3）：引擎内置各类型的占用/释放动作判别
+PAIRING_TYPES = ("grounding", "protection")
 # items 容器的固定 payload 键（§7.2 声明的条目容器即 ``items``）
 ITEMS_KEY = "items"
 
@@ -150,3 +154,21 @@ def split_expr(expr: str) -> tuple[str, tuple[str, ...]]:
         return expr, ()
     op, rest = expr.split(":", 1)
     return op, tuple(part.strip() for part in rest.split(","))
+
+
+def parse_kv(args: tuple[str, ...]) -> tuple[list[str], dict[str, str]]:
+    """T3 expr 参数：``key=value`` 形式收进键值对，其余按位置参数顺序收。"""
+    positional: list[str] = []
+    kv: dict[str, str] = {}
+    for arg in args:
+        if "=" in arg:
+            key, _, value = arg.partition("=")
+            kv[key.strip()] = value.strip()
+        else:
+            positional.append(arg.strip())
+    return positional, kv
+
+
+def split_key(key_text: str) -> list[str]:
+    """配对键：单字段或 ``+`` 连接的复合键（§13 拍板数组形式，字符串表达用 + 连接）。"""
+    return [part.strip() for part in key_text.split("+") if part.strip()]
