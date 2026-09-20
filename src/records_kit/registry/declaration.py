@@ -87,9 +87,11 @@ class TrendSpec:
     metric: str
     source: str
     window: int
-    drop_warn: float
+    drop_warn: float | None
     agg: str
     field_path: str
+    group: str | None = None
+    drop_abs: float | None = None
 
 
 @dataclass(frozen=True)
