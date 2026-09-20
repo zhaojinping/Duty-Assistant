@@ -3,6 +3,19 @@ The assistant of the operation duty officer involves 10 types of operation duty 
 
 Core package: `records_kit` (see `docs/design.md`).
 
+## 文档入口
+
+| 文档 | 说明 |
+|---|---|
+| `docs/design.md` | 核心设计文档（v1.5 审定稿 + 修订 A/B/C） |
+| `docs/shell-integration-guide.md` | **壳层对接说明（完整版，M3 交付物）** |
+| `docs/error-codes.md` | 错误码与告警码总表 |
+| `docs/dsl-gap-list.md` / `docs/dsl-gap-verify-report.md` | DSL 缺口清单（M0）与核验报告 |
+| `docs/dsl-grammar-ext-proposal.md` | 文法扩展提案（7 项拍板落文） |
+| `docs/m3-preflight-impact-assessment.md` | M3 预热影响评估 |
+| `docs/trend-caliber-proposal.md` | trend 口径收敛提案 |
+| `docs/repository-checks.md` | 仓库检查说明 |
+
 ## 开发环境搭建
 
 要求 Python ≥ 3.12（设计文档 §4 环境假设；开发机为 3.14 亦可）。包为零运行时依赖，测试用 pytest。
