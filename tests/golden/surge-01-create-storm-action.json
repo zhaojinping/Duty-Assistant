@@ -1,0 +1,37 @@
+{
+  "name": "surge-create-storm-action",
+  "record_type": "surge_arrester_action_record",
+  "note": "合成样本（synthetic，占位站/人名）：雷雨天气动作一条，全部字段在界内 → 无规则告警；周期规则不进 create 流水线，trend 段未声明 → 空数组",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "create",
+    "record_type": "surge_arrester_action_record",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "occurred_at": "2026-09-17T14:20:00+08:00",
+    "now": "2026-09-17T15:00:00+08:00",
+    "create_seq": 1,
+    "submitted_by": "张三",
+    "payload": {
+      "phase": "A",
+      "install_location": "线路侧",
+      "counter_reading": 5,
+      "action_current": 3.2,
+      "weather": "雷雨"
+    }
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "record_uid": "ST001-surge_arrester_action_record-20260917-1420-1",
+      "rev": 1,
+      "lifecycle": "draft",
+      "signature_slots": [{ "slot": "记录人", "state": "pending" }],
+      "links": []
+    },
+    "rules": [],
+    "alarm_state": { "state": null, "suppressed": false, "evidence_contains": "无 alarm 级违规" },
+    "actions_hint": [],
+    "cycle": null
+  }
+}
