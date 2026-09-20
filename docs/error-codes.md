@@ -90,9 +90,10 @@
 | surge_arrester_action_record | REPORT_NON_STORM_ACTION / CHECK_COUNTER_ABNORMAL | 非雷雨动作上报 / 计数器异常核对 |
 | transformer_core_clamp_current_record | CHECK_CORE_CURRENT_ABNORMAL / ARRANGE_OUTAGE_INSPECTION | 铁芯/夹件电流异常 / 安排停电检查 |
 | two_ticket_ledger | WARN_TICKET_NO_GAP / WARN_TICKET_UNCLOSED | 票号跳号 / 票未终结 |
+| infrared_thermography_record | REPORT_DEFECT / REMEASURE_SPOT / ARRANGE_THERMOGRAPHY | 缺陷上报 / 测点复测 / 安排红外普测（#34 合入后补录） |
 
 ## 5. 边界声明
 
 - 本表为 **L1/L2 代码事实汇编**，不代表业务验收通过；现场数值（限值/周期/Nd）仍待规程核对（§12）。
-- 红外测温类（#34）合入后其 action_codes（REPORT_DEFECT / REMEASURE_SPOT / ARRANGE_THERMOGRAPHY）补入 §4。
+
 - 后续新增错误码/动作码一律经 PR 修订本表，保持与实现同步（改实现必改本表）。
