@@ -11,6 +11,8 @@
 > 4. **A2/B1** aggregate 增 `reset_ref` 声明（**缺省不复位**）；允许事故开闸次数表定稿 **keyed-by-device** 形态。
 > 受影响条款：§7.4 两行、§7.3 算子表、§8.1 archive 行、§8.3 行结构与两处口径、§11 M0、§12 待定项。
 
+> **修订 B（2026-09-20）**：依据定稿 §4 粒度核对（一行=一票）与 M0 终审保留项②：**§7.4 两票 layout 由 `item_list` 修正为 `flat`**；连续性判定从 `ledger_view` 行 fields 取值（与 layout 无关），按票种分组、复位周期（工作票按月/操作票按年）随 GAP-E4 落声明。受影响条款：§7.4 两票行。
+
 ## 1. 背景与目标
 
 围绕 **10 类**运行值班记录（断路器跳闸、避雷器动作、接地线装拆、两票登记、设备测温、绝缘测试、蓄电池电压测试、主变铁芯夹件电流测试、保护投退、防小动物检查），构建一个**全新、独立**的工具包。
@@ -284,7 +286,7 @@ drop_warn = 0.10
 | breaker_trip_record | 断路器跳闸记录簿 | flat | 记录人 | 跳闸次数逼近允许开闸次数（T3, aggregate+external_baseline，算子语义随 M0 定稿） |
 | surge_arrester_action_record | 避雷器动作记录簿 | flat | 记录人 | 非雷雨天气动作→warn（T1 条件，when 表达力见 §7.3） |
 | grounding_wire_record | 接地线装拆记录簿 | flat（修订A：一行一动作） | 操作人、监护人 | 装拆配对（T3, pairing 键=接地线编号，含重复占用）；拆除超时（T3：link 工作票跨记录 date_diff）；装-拆间隔（T3 跨记录 date_diff，修订A：不再走条目内 T2） |
-| two_ticket_ledger | 两票登记台账 | item_list | 签发人、许可人 | 编号连续性（T3, continuity，从 §8.3 行 fields 取值） |
+| two_ticket_ledger | 两票登记台账 | flat（修订B：一行=一票） | 许可人、签发人 | 编号连续性（T3, continuity：按票种分组、复位周期 工作票按月/操作票按年——E4；从 ledger_view 行 fields 取值） |
 | infrared_thermography_record | 设备测温（红外）记录簿 | item_list | 记录人 | 温升/温差等级（**T2**, diff）；测点必附红外图（require_attachment） |
 | insulation_test_record | 绝缘测试记录簿 | flat | 试验人 | 吸收比带（T2, ratio）；阻值下限（T1）；周期（探针执行，§7.3 豁免注） |
 | battery_voltage_test | 蓄电池电压测试记录簿 | item_list | 测试人 | 电压带（T1）；落后偏差（T2）；周期（探针执行，§7.3 豁免注） |
