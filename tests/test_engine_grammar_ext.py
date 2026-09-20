@@ -388,14 +388,31 @@ def test_monotonic_ex4_voided_row_is_skipped(counter_declaration):
 
 
 def test_monotonic_ex5_confirmed_fields_wins(counter_declaration):
-    """§6.3-5：同链旧版本读数 7、最后已确认版读数 9 + 本次 9 → ``pass``（``confirmed_fields`` 优先）。"""
+    """§6.3-5：同链旧版本读数 7、最后已确认版读数 9 + 本次 9 → ``pass``（``confirmed_fields`` 优先）。
+
+    断言写「前值 9.0」而非裸 ``9``——否则「本次 9」也会满足弱断言，前值方向取错照样通过。
+    """
     rows = [
         _row("u1", {"counter_reading": 7}, occurred_at=EARLIER, rev=1),
         _row("u1", {"counter_reading": 7}, occurred_at=EARLIER, rev=2, confirmed_fields={"counter_reading": 9}),
     ]
     entry = _judge(counter_declaration, {"counter_reading": 9}, rows=rows)[0]
     assert entry["verdict"] == "pass"
-    assert "9" in entry["detail"]
+    assert "前值 9.0" in entry["detail"], entry["detail"]
+
+
+def test_monotonic_ex5_low_version_is_not_used_as_previous(counter_declaration):
+    """§6.3-5 判别性变体：本次 8 < 最后已确认版 9 → ``violation``。
+
+    若同刻并列取到低版本行（前值 7），``8 ≥ 7`` 会假通过——读数倒退被漏报。
+    """
+    rows = [
+        _row("u1", {"counter_reading": 7}, occurred_at=EARLIER, rev=1),
+        _row("u1", {"counter_reading": 7}, occurred_at=EARLIER, rev=2, confirmed_fields={"counter_reading": 9}),
+    ]
+    entry = _judge(counter_declaration, {"counter_reading": 8}, rows=rows)[0]
+    assert entry["verdict"] == "violation"
+    assert "前值 9.0" in entry["detail"], entry["detail"]
 
 
 def test_monotonic_ex5_own_correct_chain_is_excluded(counter_declaration):

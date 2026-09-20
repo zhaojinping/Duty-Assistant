@@ -763,7 +763,9 @@ def _judge_monotonic(declaration, rule, fields, ledger_view, baselines, occurred
     if not candidates:
         return "skipped", "无有效前值行（首次记录）；单调性不可判，不静默通过"
 
-    candidates.sort(key=lambda item: (item[0] is not None, item[0], -item[1], item[2]))
+    # 定序（升序）→ 取末尾 = 优先级最高：有时间者优先 → occurred_at 最新 → rev 最大（最后版本）
+    # → record_uid 最大。账本行字段已冻结、无 create_seq，同刻多版本以 rev 同向替代。
+    candidates.sort(key=lambda item: (item[0] is not None, item[0], item[1], item[2]))
     moment, _, previous_uid, previous, previous_at = candidates[-1]
 
     window = kv.get("window")
