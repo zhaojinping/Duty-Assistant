@@ -12,6 +12,19 @@
     "now": "2026-09-17T15:00:00+08:00",
     "create_seq": 1,
     "submitted_by": "张三",
+    "baselines": [
+      {
+        "ref": "BL_BREAKER_TRIP_LIMIT",
+        "kind": "count_table",
+        "name": "允许事故开闸次数表（合成占位数值）",
+        "data": { "QF-101": 20 }
+      }
+    ],
+    "ledger_view": {
+      "confirmed_digests": [],
+      "same_type_records": [],
+      "linked_records": []
+    },
     "payload": {
       "breaker_id": "QF-101",
       "protection_action": "过流I段动作（合成描述）",
