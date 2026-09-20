@@ -1,0 +1,46 @@
+{
+  "name": "grounding-create-occupy",
+  "record_type": "grounding_wire_record",
+  "note": "合成样本（synthetic，占位站/人名）：接地线 01 号装设一条（首笔占用，无前序同键记录）→ pairing pass；悬空占用不 violation（进探针 cycle[].detail 语义）；remove_overdue（Nd 待现场）未转正 → rules 仅 pairing 一条",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "create",
+    "record_type": "grounding_wire_record",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "occurred_at": "2026-09-20T09:15:00+08:00",
+    "now": "2026-09-20T09:40:00+08:00",
+    "create_seq": 1,
+    "submitted_by": "张三",
+    "ledger_view": {
+      "confirmed_digests": [],
+      "same_type_records": [],
+      "linked_records": []
+    },
+    "payload": {
+      "action": "装设",
+      "wire_id": "JDX-01（合成占位）",
+      "location": "35kV进线间隔（合成占位）",
+      "order_ref": "Work-2026-09-001（合成占位）"
+    }
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "record_uid": "ST001-grounding_wire_record-20260920-0915-1",
+      "rev": 1,
+      "lifecycle": "draft",
+      "signature_slots": [
+        { "slot": "操作人", "state": "pending" },
+        { "slot": "监护人", "state": "pending" }
+      ],
+      "links": []
+    },
+    "rules": [
+      { "rule_id": "wire_pairing", "verdict": "pass", "level": "info", "tier": 3 }
+    ],
+    "alarm_state": { "state": null, "suppressed": false, "evidence_contains": "无 alarm 级违规" },
+    "actions_hint": [],
+    "cycle": null
+  }
+}

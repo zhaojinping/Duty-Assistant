@@ -1,0 +1,47 @@
+{
+  "name": "protection-create-switch-on",
+  "record_type": "protection_switch_record",
+  "note": "合成样本（synthetic，占位站/人名）：重合闸出口压板投入一条（首笔占用）→ pairing pass；recover_in_time（Nd 待现场）未转正 → rules 仅 pairing 一条；restored_at 为投行恒空（GAP-H1 条件必填未启用）",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "create",
+    "record_type": "protection_switch_record",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "occurred_at": "2026-09-20T10:05:00+08:00",
+    "now": "2026-09-20T10:30:00+08:00",
+    "create_seq": 1,
+    "submitted_by": "张三",
+    "ledger_view": {
+      "confirmed_digests": [],
+      "same_type_records": [],
+      "linked_records": []
+    },
+    "payload": {
+      "device_id": "PL-101（合成占位）",
+      "function": "重合闸",
+      "action": "投",
+      "reason": "线路检修完工恢复（合成描述）",
+      "dispatch_order_no": "DL-2026-09-018（合成占位）"
+    }
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "record_uid": "ST001-protection_switch_record-20260920-1005-1",
+      "rev": 1,
+      "lifecycle": "draft",
+      "signature_slots": [
+        { "slot": "操作人", "state": "pending" },
+        { "slot": "监护人", "state": "pending" }
+      ],
+      "links": []
+    },
+    "rules": [
+      { "rule_id": "switch_pairing", "verdict": "pass", "level": "info", "tier": 3 }
+    ],
+    "alarm_state": { "state": null, "suppressed": false, "evidence_contains": "无 alarm 级违规" },
+    "actions_hint": [],
+    "cycle": null
+  }
+}

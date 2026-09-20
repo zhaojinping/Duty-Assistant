@@ -1,0 +1,60 @@
+# 接地线装拆记录簿声明草案（M2 前置 · 批2/3 · flat，案 B）
+# 依据：docs/dsl-gap-list.md 定稿 §3 + §13 拍板（案 B：一行一动作 + T3 pairing）
+# 规则段 TODO 占位——待 M1 引擎接口冻结后转正；格式基准 docs/dsl/README.md
+
+[meta]
+record_type = "grounding_wire_record"
+title = "接地线装拆记录簿"
+schema_version = "1.5"
+layout = "flat"                     # §13 拍板案 B：一行=一动作，装/拆跨记录配对
+dedupe_key = ["station", "occurred_at", "wire_id", "action"]
+link_types = ["references"]         # 命令来源挂工作票/操作票（references → two_ticket_ledger）
+extra = "reject"
+signature_slots = ["操作人", "监护人"]
+action_codes = ["WARN_WIRE_DANGLING", "WARN_WIRE_REOCCUPY", "WARN_REMOVE_OVERDUE"]
+escalate_after = 3
+
+[[fields]]
+key = "action"
+name = "类别"
+type = "enum"
+options = ["装设", "拆除"]          # 模板括号自带；pairing 类型判别
+required = true
+
+[[fields]]
+key = "wire_id"
+name = "接地线编号"
+type = "text"
+required = true                     # pairing 配对键
+
+[[fields]]
+key = "location"
+name = "装设地点(设备编号)"
+type = "text"
+required = true                     # 拆除行是否强制与装设一致 → 条件必填细节（GAP-H2），M1 接口定稿后启用
+
+[[fields]]
+key = "order_ref"
+name = "命令来源(令号/票号)"
+type = "text"
+required = true                     # links references → 两票；"拆除超时"取数链路（GAP-E5）
+
+# ---- 规则段：T3 按 #20 冻结文法转正（tier=3、不设 target、一律走 expr）----
+
+[[rules]]
+id = "wire_pairing"
+kind = "limit"
+tier = 3
+expr = "pairing:grounding,key=wire_id"
+# 语义：同键（接地线编号）重复占用 → violation；占用后未释放（装设无拆除）的悬空半边
+# → 探针 cycle[].detail（verdict=due）；动作判别引擎内置（装设=占用/拆除=释放）。
+level = "alarm"
+action = "WARN_WIRE_REOCCUPY"
+
+# ---- 未转正规则（TODO：Nd 待现场，见 docs/dsl/ 草案同段）----
+# TODO rules:
+#   - id: remove_overdue             # T3 跨记录 date_diff（tier=3、不设 target）
+#     expr: date_diff:linked.<票终结时间>,occurred_at,le:Nd   # 取数经 linked_records（GAP-E5），Nd 待现场
+#     action: WARN_REMOVE_OVERDUE                # 脚注：工作票终结后应及时拆除
+# ---- 周期段 ----
+# 无周期（事件触发型）。脚注"交接班须交代使用中接地线"属交接班流程，不在本包范围。
