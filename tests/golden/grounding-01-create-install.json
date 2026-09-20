@@ -1,0 +1,59 @@
+{
+ "name": "grounding-01-create-install",
+ "record_type": "grounding_wire_record",
+ "note": "合成样本（synthetic，占位站/人名）",
+ "envelope": {
+  "protocol": "records-kit",
+  "protocol_version": "1.5",
+  "operation": "create",
+  "record_type": "grounding_wire_record",
+  "station": {
+   "station_id": "ST001",
+   "station_name": "XX风电场"
+  },
+  "occurred_at": "2026-09-20T09:00:00+08:00",
+  "now": "2026-09-20T11:00:00+08:00",
+  "create_seq": 1,
+  "submitted_by": "张三",
+  "payload": {
+   "action": "装设",
+   "wire_id": "GX-01",
+   "location": "351开关柜线路侧（合成）",
+   "order_ref": "操2026-0001（合成）"
+  }
+ },
+ "expect": {
+  "status": "ok",
+  "record": {
+   "record_uid": "ST001-grounding_wire_record-20260920-0900-1",
+   "rev": 1,
+   "lifecycle": "draft",
+   "signature_slots": [
+    {
+     "slot": "操作人",
+     "state": "pending"
+    },
+    {
+     "slot": "监护人",
+     "state": "pending"
+    }
+   ],
+   "links": []
+  },
+  "rules": [
+   {
+    "rule_id": "wire_pairing",
+    "kind": "limit",
+    "tier": 3,
+    "verdict": "pass"
+   }
+  ],
+  "alarm_state": {
+   "state": null,
+   "suppressed": false,
+   "evidence_contains": "无 alarm 级违规"
+  },
+  "actions_hint": [],
+  "cycle": null
+ }
+}

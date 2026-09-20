@@ -63,10 +63,12 @@ tier = 1                             # 固定 1：归层原则约束的是 creat
 expr = "monthly"                     # 每月核对计数器底数（模板脚注明示，为周期值出处）
 # cycle_baseline：missing 判定起算日，待现场规程核对（主设 §12）
 
-# ---- 未转正规则（TODO：待引擎能力扩展，见 docs/dsl/ 草案同段）----
+# ---- 未转正规则（TODO：文法已拍板，待引擎实现后按此转正）----
 # TODO rules:
-#   - id: non_storm_action            # kind=limit / tier=1
-#     expr: (待 when 否定文法定稿) weather != "雷雨" → warn
-#     action: REPORT_NON_STORM_ACTION            # GAP-C1（脚注：非雷雨天气动作应检查上报）
-#   - id: counter_monotonic           # 跨记录单调核对：本次 < 上次 → warn
-#     action: CHECK_COUNTER_ABNORMAL             # GAP-A3（单调算子随 M2 T3 引擎定稿）
+#   - id: non_storm_action            # kind=limit / tier=1 / target=weather
+#     when = { weather = "not_in:雷雨" }          # when 值侧前缀微文法（主控 09-20 拍板）
+#     expr: (待引擎微文法实现定稿)                    # GAP-C1（脚注：非雷雨天气动作应检查上报）
+#     action: REPORT_NON_STORM_ACTION
+#   - id: counter_monotonic           # T3 框架（tier=3、不设 target、走 expr）：跨记录单调核对
+#     expr: (待单调算子入 #20 六算子族) 本次 < 上次 → warn
+#     action: CHECK_COUNTER_ABNORMAL             # GAP-A3（脚注：每月核对计数器底数）

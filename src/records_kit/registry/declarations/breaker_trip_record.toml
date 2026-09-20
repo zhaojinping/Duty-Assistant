@@ -52,12 +52,21 @@ name = "天气及异常情况"
 type = "text"
 required = false
 
-# ---- 未转正规则（TODO：T3，待引擎接口冻结，见 docs/dsl/ 草案同段）----
+# ---- 规则段：T3 按 #20 冻结文法转正（tier=3、不设 target、一律走 expr）----
+
+[[rules]]
+id = "trip_approaching"
+kind = "limit"
+tier = 3
+expr = "aggregate:count_over,key=breaker_id,ref=BL_BREAKER_TRIP_LIMIT"
+# 语义：按 breaker_id 累计同分组非 voided 跳闸数（含当前），≥ 基线允许值 → violation（§13 拍板：
+# 缺省不复位、keyed-by-device）。基线数值由壳层注入 baselines（ref=BL_BREAKER_TRIP_LIMIT，
+# 数值待现场 §14，声明只写 ref）；缺 ref 数据 → E_BASELINE_MISSING 记录级拒绝（引擎语义）。
+level = "alarm"
+action = "REPORT_BASELINE_APPROACH"          # 脚注：接近允许事故开闸次数时重点跟踪
+
+# ---- 未转正规则（TODO：待引擎算子扩展，见 docs/dsl/ 草案同段）----
 # TODO rules:
-#   - id: trip_approaching            # kind=aggregate / tier=3
-#     expr: aggregate:count_over,reset_ref        # 按 breaker_id 累计非 voided 跳闸数，缺省不复位（§13 拍板）
-#     baseline: external_baseline keyed-by-device # 允许事故开闸次数表（数值待现场 §14）
-#     action: REPORT_BASELINE_APPROACH            # 脚注：接近允许事故开闸次数时重点跟踪
 #   - id: trip_count_check            # 人工累计 vs aggregate 计算一致性核对（GAP-H6 双源，算子待 M2）
 # ---- 周期段 ----
 # 无周期（事件触发型）。
