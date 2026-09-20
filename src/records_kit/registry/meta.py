@@ -15,17 +15,21 @@ from records_kit.registry.declaration import (
     FIELD_TYPES,
     LAYOUTS,
     LINK_TYPES,
+    PAIRING_TYPES,
     RULE_KINDS,
     RULE_LEVELS,
     SUPPORTED_TIERS,
+    T3_OPS,
     Declaration,
     DeclarationError,
     FieldSpec,
     ItemSpec,
     RuleSpec,
     TrendSpec,
+    parse_kv,
     resolve_path,
     split_expr,
+    split_key,
 )
 from records_kit.util import AGG_WHITELIST, PERIOD_KINDS, TimeTextError, period_spec
 
@@ -219,7 +223,10 @@ def _check_rule(
         return
 
     if rule.tier not in SUPPORTED_TIERS:
-        problems.add(f"{label}：tier={rule.tier} 属 M2（T3 台账/跨记录）范围，M1 引擎拒绝加载")
+        problems.add(f"{label}：tier={rule.tier} 超出支持层（1/2/3）")
+        return
+    if rule.tier == 3:
+        _check_t3_rule(declaration, rule, op, args, problems, label)
         return
     if op not in _NUMERIC_OPS + _DERIVED_OPS:
         problems.add(f"{label}.expr 未知算子：{op!r}")
@@ -292,6 +299,88 @@ def _check_rule(
         comparator, _, bound = args[2].partition(":")
         if comparator not in _COMPARATORS or not bound.endswith("d") or _as_number(bound[:-1]) is None:
             problems.add(f"{label}.expr date_diff 比较项不合法：{args[2]!r}")
+
+    action = rule.action
+    if action is not None and action not in declaration.action_codes:
+        problems.add(f"{label}.action 不在声明的 action_codes 内：{action}")
+
+
+def _check_t3_rule(declaration, rule, op, args, problems, label) -> None:
+    """T3（台账/跨记录）规则文法校验（design.md §7.3 + M0 定稿 §13）。"""
+    if rule.target is not None:
+        problems.add(f"{label}：T3 规则不设 target（字段取自 expr）")
+    if op not in T3_OPS and op != "date_diff":
+        problems.add(f"{label}.expr 未知 T3 算子：{op!r}（应为 {'/'.join(T3_OPS)} 或跨记录 date_diff）")
+        return
+    positional, kv = parse_kv(args)
+
+    def _field(path: str, what: str) -> bool:
+        resolved = resolve_path(declaration, path)
+        if resolved is None:
+            problems.add(f"{label}.{what} 引用不存在的字段：{path}")
+            return False
+        if resolved[1] is None:
+            problems.add(f"{label}.{what} 不允许指向条目容器：{path}")
+            return False
+        return True
+
+    if op == "continuity":
+        if not positional:
+            problems.add(f"{label}.expr continuity 需要编号字段：{rule.expr}")
+            return
+        _field(positional[0], "expr")
+        if "group" in kv:
+            _field(kv["group"], "expr")
+        if "reset" in kv and kv["reset"] not in ("monthly", "yearly"):
+            problems.add(f"{label}.expr continuity reset 只能是 monthly/yearly：{rule.expr}")
+    elif op == "pairing":
+        if not positional or positional[0] not in PAIRING_TYPES:
+            problems.add(f"{label}.expr pairing 类型必须是 {'/'.join(PAIRING_TYPES)}：{rule.expr}")
+            return
+        if "key" not in kv:
+            problems.add(f"{label}.expr pairing 必须声明 key：{rule.expr}")
+            return
+        for key_field in split_key(kv["key"]):
+            _field(key_field, "expr")
+    elif op == "external_baseline":
+        if not positional:
+            problems.add(f"{label}.expr external_baseline 需要 ref：{rule.expr}")
+            return
+        for named in ("field", "key"):
+            if named in kv:
+                _field(kv[named], "expr")
+        if "op" in kv and kv["op"] not in ("gte", "lte"):
+            problems.add(f"{label}.expr external_baseline op 只能是 gte/lte：{rule.expr}")
+    elif op == "recovery_within":
+        days = _as_number(positional[0][:-1]) if positional and positional[0].endswith("d") else None
+        if not positional or days is None or days <= 0:
+            problems.add(f"{label}.expr recovery_within 需要 Nd 形式（N>0）：{rule.expr}")
+        if "key" not in kv:
+            problems.add(f"{label}.expr recovery_within 必须声明 key（配对键）：{rule.expr}")
+        else:
+            for key_field in split_key(kv["key"]):
+                _field(key_field, "expr")
+    elif op == "aggregate":
+        if not positional or positional[0] != "count_over":
+            problems.add(f"{label}.expr aggregate 仅支持 count_over：{rule.expr}")
+            return
+        if "key" in kv:
+            _field(kv["key"], "expr")
+    elif op == "date_diff":
+        if len(positional) < 3:
+            problems.add(f"{label}.expr date_diff 需要 from,to,ge|le:Nd 三个参数")
+            return
+        for path in positional[:2]:
+            if path.startswith("linked."):
+                continue
+            if path == "occurred_at":  # 信封伪字段：记录时间
+                continue
+            resolved = resolve_path(declaration, path)
+            if resolved is None or resolved[1] is None or resolved[1].kind != "datetime":
+                problems.add(f"{label}.expr date_diff 只能作用于 datetime 字段：{path}")
+        comparator, _, bound = positional[2].partition(":")
+        if comparator not in _COMPARATORS or not bound.endswith("d") or _as_number(bound[:-1]) is None:
+            problems.add(f"{label}.expr date_diff 比较项不合法：{positional[2]!r}")
 
     action = rule.action
     if action is not None and action not in declaration.action_codes:
