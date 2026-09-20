@@ -556,6 +556,8 @@ def _trends(declaration: Declaration, raw_trends: object, problems: _Problems) -
         source = raw.get("source")
         window = raw.get("window")
         drop_warn = raw.get("drop_warn")
+        drop_abs = raw.get("drop_abs")
+        group = raw.get("group")
         if not isinstance(metric, str) or not metric:
             problems.add(f"{label}.metric 缺失或非字符串")
             continue
@@ -583,11 +585,47 @@ def _trends(declaration: Declaration, raw_trends: object, problems: _Problems) -
         if not isinstance(window, int) or isinstance(window, bool) or window < 2:
             problems.add(f"{label}.window 必须是 ≥2 的整数")
             continue
-        if not isinstance(drop_warn, (int, float)) or isinstance(drop_warn, bool) or not (0 < drop_warn <= 1):
+        # 口径互斥（提案 §3.1 / §4-9）：drop_warn（相对比）与 drop_abs（零基准绝对差值）二选一
+        if drop_warn is not None and drop_abs is not None:
+            problems.add(
+                f"{label}：drop_warn 与 drop_abs 互斥（同时声明会造成双重触发口径歧义）"
+            )
+            continue
+        if drop_warn is None and drop_abs is None:
+            problems.add(f"{label}.drop_warn 缺失（零基准口径请改写 drop_abs）")
+            continue
+        if drop_warn is not None and (
+            not isinstance(drop_warn, (int, float)) or isinstance(drop_warn, bool) or not (0 < drop_warn <= 1)
+        ):
             problems.add(f"{label}.drop_warn 必须是 (0,1] 内的数值")
             continue
+        if drop_abs is not None and (
+            not isinstance(drop_abs, (int, float)) or isinstance(drop_abs, bool) or not drop_abs > 0
+        ):
+            problems.add(f"{label}.drop_abs 必须是 >0 的数值")
+            continue
+        if group is not None:
+            if not isinstance(group, str) or not group:
+                problems.add(f"{label}.group 必须是非空字符串")
+                continue
+            group_target = resolve_path(declaration, group)
+            if group_target is None:
+                problems.add(f"{label}.group 引用不存在的字段：{group}")
+                continue
+            if group_target[0] != "top" or group_target[1] is None:
+                problems.add(f"{label}.group 须为顶层字段（条目字段另案）：{group}")
+                continue
         trends.append(
-            TrendSpec(metric=metric, source=source, window=window, drop_warn=float(drop_warn), agg=agg, field_path=path)
+            TrendSpec(
+                metric=metric,
+                source=source,
+                window=window,
+                drop_warn=float(drop_warn) if drop_warn is not None else None,
+                agg=agg,
+                field_path=path,
+                group=group if isinstance(group, str) and group else None,
+                drop_abs=float(drop_abs) if drop_abs is not None else None,
+            )
         )
     return tuple(trends)
 

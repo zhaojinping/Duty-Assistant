@@ -76,4 +76,6 @@ expr = "periodic:30d"                # 每月一次（制度出处：汇编2023�
 #     expr: lte:上限 ×2（core_current / clamp_current）   # 数值待现场（§14）
 #     action: CHECK_CORE_CURRENT_ABNORMAL
 #   - id: current_trend              # trend：source=core_current / clamp_current，按 transformer_id 序列
-#     drop_warn 口径、比较基准、阈值均属主设 §12 待定    # 与 vs_last_note 双源核对（GAP-H6，算子待 M2）
+#     group = "transformer_id"       # 分组键已定（M3 收敛：docs/trend-caliber-proposal.md §3.4）
+#     drop_warn（相对比）/ 比较基准（窗口首值）已定；零基准改写 drop_abs；阈值数值属现场（§12）
+#     与 vs_last_note 双源核对（GAP-H6）
