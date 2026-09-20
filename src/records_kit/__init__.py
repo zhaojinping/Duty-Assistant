@@ -125,7 +125,7 @@ def _dispatch(envelope: dict, registry: Registry, scope: dict) -> dict:
 
     ledger_view = views.ledger(envelope, declaration, required=operation != "create")
     history_rows = views.history(envelope, declaration) if envelope.get("history") is not None else []
-    views.baselines(envelope)
+    baseline_rows = views.baselines(envelope)
     views.alarm_history(envelope)
 
     if operation in ("create", "correct"):
@@ -143,7 +143,13 @@ def _dispatch(envelope: dict, registry: Registry, scope: dict) -> dict:
     if operation in NO_JUDGEMENT_OPERATIONS:
         return _ok(scope, life.record, [], [], [], None)
 
-    report = rules_engine.evaluate_rules(declaration, life.fields)
+    report = rules_engine.evaluate_rules(
+        declaration,
+        life.fields,
+        ledger_view=ledger_view,
+        baselines=baseline_rows,
+        occurred_at=life.occurred_at,
+    )
     trend_entries = trend_engine.evaluate_trend(declaration, life.fields, history_rows)
     alarm_state = alarm_engine.evaluate_alarm(
         declaration, envelope["station"]["station_id"], declaration.record_type, report, envelope

@@ -1,7 +1,8 @@
 """engine —— 记录引擎流水线（design.md §4）。
 
 ```
-validate → assemble → rules(T1/T2) → trend → lifecycle(操作+乐观锁) → cycle_status
+validate → assemble → rules(T1/T2) → rules(T3,需ledger_view/baselines)
+→ trend → lifecycle(操作+乐观锁) → cycle_status
 ```
 
 本包为纯函数实现：不读时钟、不做 I/O、无持久状态（铁律 1/2/3）。
