@@ -15,11 +15,16 @@ from records_kit.registry.declaration import (
     FIELD_TYPES,
     LAYOUTS,
     LINK_TYPES,
+    MONOTONIC_OPS,
+    MONOTONIC_PARAMS,
     PAIRING_TYPES,
     RULE_KINDS,
     RULE_LEVELS,
     SUPPORTED_TIERS,
     T3_OPS,
+    TRI_BOOL_OPTIONS,
+    WHEN_OPS,
+    WHEN_RESERVED_OPS,
     Declaration,
     DeclarationError,
     FieldSpec,
@@ -30,6 +35,7 @@ from records_kit.registry.declaration import (
     resolve_path,
     split_expr,
     split_key,
+    split_when_value,
 )
 from records_kit.util import AGG_WHITELIST, PERIOD_KINDS, TimeTextError, period_spec
 
@@ -175,7 +181,8 @@ def _items_spec(raw_items: object, layout: str, problems: _Problems) -> ItemSpec
     return ItemSpec(key_field=key_field if isinstance(key_field, str) else "", fields=fields, min_items=min_items, required=required)
 
 
-def _check_when(declaration: Declaration, rule: RuleSpec, when: object, problems: _Problems, label: str) -> dict:
+def _check_when(declaration: Declaration, rule: RuleSpec | None, when: object, problems: _Problems, label: str) -> dict:
+    """``when`` 校验（design.md §7.3 + 文法扩展提案 §3）：前缀解析、集合成员、歧义守卫。"""
     if when is None:
         return {}
     if not isinstance(when, dict) or not when:
@@ -190,11 +197,60 @@ def _check_when(declaration: Declaration, rule: RuleSpec, when: object, problems
         if scope == "items_list" or spec is None:
             problems.add(f"{label}.when 不允许指向条目容器：{path}")
             continue
-        if spec.kind == "enum" and expected not in spec.options:
-            problems.add(f"{label}.when 的取值 {expected!r} 不在字段 {path} 的枚举内")
-        if spec.kind == "tri_bool" and expected not in ("是", "否", "不适用"):
-            problems.add(f"{label}.when 的取值 {expected!r} 不是三态布尔取值")
+        op, operands = split_when_value(expected)
+        if op in WHEN_RESERVED_OPS:
+            problems.add(
+                f"{label}.when 使用未落地的算子 {op}:（本次仅支持 {'/'.join(WHEN_OPS)}）：{path}"
+            )
+            continue
+        # 歧义守卫（§3.5-3）：枚举取值若以已登记算子前缀开头，字面量写法无法消歧
+        ambiguous = [
+            option for option in spec.options if option.startswith(tuple(f"{name}:" for name in WHEN_OPS))
+        ]
+        if ambiguous:
+            problems.add(
+                f"{label}.when 字段 {path} 的枚举含算子前缀取值 {ambiguous[0]!r}"
+                "（歧义守卫：请改选项集，或该处用显式 eq: 形态）"
+            )
+            continue
+        if op == "eq":
+            _check_when_operand(spec, path, operands[0], problems, label)
+            continue
+        if any(not str(item).strip() for item in operands):
+            problems.add(f"{label}.when 集合含空成员：{path} = {expected!r}")
+            continue
+        for member in operands:
+            _check_when_operand(spec, path, member, problems, label)
     return dict(when)
+
+
+def _check_when_operand(spec: FieldSpec, path: str, value: object, problems: _Problems, label: str) -> None:
+    """``when`` 的操作数须与字段类型一致（§3.5-2）：枚举落在 options、三态取三值、数值可转。"""
+    if spec.kind == "enum":
+        if value not in spec.options:
+            problems.add(f"{label}.when 的取值 {value!r} 不在字段 {path} 的枚举内")
+    elif spec.kind == "tri_bool":
+        if value not in TRI_BOOL_OPTIONS:
+            problems.add(f"{label}.when 的取值 {value!r} 不是三态布尔取值")
+    elif spec.kind == "number" and _as_number(value) is None:
+        problems.add(f"{label}.when 的取值 {value!r} 不是数值（字段 {path} 为 number）")
+
+
+def _check_condition_rule(declaration: Declaration, rule: RuleSpec, raw: dict, problems: _Problems, label: str) -> None:
+    """条件型规则（提案 §4.1）：tier 恒 1；``when`` 必填非空；禁止 ``target`` / ``expr``。"""
+    if rule.tier != 1:
+        problems.add(f"{label}：条件型规则 tier 固定 1（when 只读本记录 payload）")
+    if rule.target is not None:
+        problems.add(f"{label}：条件型规则禁止 target（判定对象是 when 条件本身）")
+    if "expr" in raw:
+        problems.add(f"{label}：条件型规则禁止 expr")
+    if not rule.when:
+        problems.add(f"{label}：条件型规则必须声明非空 when（空表恒命中 = 恒违规）")
+    if rule.level not in RULE_LEVELS:
+        problems.add(f"{label}.level 必须是 {'/'.join(RULE_LEVELS)} 之一")
+    action = rule.action
+    if action is not None and action not in declaration.action_codes:
+        problems.add(f"{label}.action 不在声明的 action_codes 内：{action}")
 
 
 def _check_rule(
@@ -220,6 +276,10 @@ def _check_rule(
         baseline = raw.get("cycle_baseline")
         if baseline is not None and not isinstance(baseline, str):
             problems.add(f"{label}.cycle_baseline 必须是日期文本")
+        return
+
+    if rule.kind == "condition":
+        _check_condition_rule(declaration, rule, raw, problems, label)
         return
 
     if rule.tier not in SUPPORTED_TIERS:
@@ -366,6 +426,8 @@ def _check_t3_rule(declaration, rule, op, args, problems, label) -> None:
             return
         if "key" in kv:
             _field(kv["key"], "expr")
+    elif op == "monotonic":
+        _check_monotonic(declaration, rule, positional, kv, problems, label)
     elif op == "date_diff":
         if len(positional) < 3:
             problems.add(f"{label}.expr date_diff 需要 from,to,ge|le:Nd 三个参数")
@@ -385,6 +447,35 @@ def _check_t3_rule(declaration, rule, op, args, problems, label) -> None:
     action = rule.action
     if action is not None and action not in declaration.action_codes:
         problems.add(f"{label}.action 不在声明的 action_codes 内：{action}")
+
+
+def _check_monotonic(declaration, rule, positional, kv, problems: _Problems, label: str) -> None:
+    """跨记录单调算子（提案 §5.2）：``field`` 为顶层 number 字段；``key``/``op``/``window`` 可选。"""
+    if len(positional) != 1:
+        problems.add(f"{label}.expr monotonic 需要且仅需要 1 个位置参数（field）：{rule.expr}")
+        return
+    resolved = resolve_path(declaration, positional[0])
+    if resolved is None:
+        problems.add(f"{label}.expr 引用不存在的字段：{positional[0]}")
+    elif resolved[0] != "top" or resolved[1] is None or resolved[1].kind != "number":
+        problems.add(f"{label}.expr monotonic 的 field 必须是顶层 number 字段（条目字段本次不支持）：{positional[0]}")
+    if "key" in kv:
+        for key_field in split_key(kv["key"]):
+            target = resolve_path(declaration, key_field)
+            if target is None:
+                problems.add(f"{label}.expr 引用不存在的字段：{key_field}")
+            elif target[1] is None:
+                problems.add(f"{label}.expr 不允许指向条目容器：{key_field}")
+    if "op" in kv and kv["op"] not in MONOTONIC_OPS:
+        problems.add(f"{label}.expr monotonic op 只能是 {'/'.join(MONOTONIC_OPS)}：{rule.expr}")
+    if "window" in kv:
+        window = kv["window"]
+        body = window[:-1] if window.endswith("d") else ""
+        if not body.isdigit() or int(body) < 1:
+            problems.add(f"{label}.expr monotonic window 需要 Nd 形式（N 为正整数）：{rule.expr}")
+    for name in kv:
+        if name not in MONOTONIC_PARAMS:
+            problems.add(f"{label}.expr monotonic 未知参数：{name}")
 
 
 def _rules(declaration_probe: dict, problems: _Problems, declaration) -> tuple[RuleSpec, ...]:
@@ -415,11 +506,13 @@ def _rules(declaration_probe: dict, problems: _Problems, declaration) -> tuple[R
             problems.add(f"{label}.tier 必须是正整数")
             tier = 1
         expr = raw.get("expr")
-        if not isinstance(expr, str) or not expr:
+        if kind == "condition":
+            expr = ""  # 条件型规则无 expr；显式书写由 _check_condition_rule 拒绝
+        elif not isinstance(expr, str) or not expr:
             problems.add(f"{label}.expr 缺失或非字符串")
             continue
-        level = raw.get("level", "warn" if kind == "limit" else "info")
-        if kind == "limit" and level not in RULE_LEVELS:
+        level = raw.get("level", "info" if kind == "cycle" else "warn")
+        if kind != "cycle" and level not in RULE_LEVELS:
             problems.add(f"{label}.level 必须是 {'/'.join(RULE_LEVELS)} 之一")
             level = "warn"
         target = raw.get("target")

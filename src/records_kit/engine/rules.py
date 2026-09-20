@@ -22,6 +22,7 @@ from records_kit.registry.declaration import (
     resolve_path,
     split_expr,
     split_key,
+    split_when_value,
 )
 from records_kit.util import TimeTextError, days_between, parse_rfc3339
 
@@ -60,8 +61,31 @@ class RulesReport:
         self.actions.extend(other.actions)
 
 
+def _when_holds(value, op: str, operands: tuple) -> bool:
+    """单条 ``when`` 条件的成立判定（文法扩展提案 §3.3/§3.4）。
+
+    空值口径：字段未填（缺键或 None）→ **条件不成立**——否定算子不改这条，
+    不把「未填」当成「非雷雨」，避免旧数据缺列直接触发误报。
+    """
+    if value is MISSING or value is None:
+        return False
+    if op == "eq":
+        return value == operands[0]
+    if op == "ne":
+        return value != operands[0]
+    if op == "in":
+        return value in operands
+    if op == "not_in":
+        return value not in operands
+    return False
+
+
 def when_matches(declaration: Declaration, fields: dict, when: dict) -> bool:
-    """``when`` 等值匹配：顶层字段取记录字段，条目字段取任一条目命中（§7.3）。"""
+    """``when`` 命中判定（§7.3 + 提案 §3）。
+
+    顶层字段取记录字段；条目字段取**任一条目**命中（存在量词，与现状一致）；
+    多条件为 AND；空表恒命中。
+    """
     if not when:
         return True
     for path, expected in when.items():
@@ -71,15 +95,40 @@ def when_matches(declaration: Declaration, fields: dict, when: dict) -> bool:
         scope, spec = resolved
         if spec is None:
             return False
+        op, operands = split_when_value(expected)
         if scope == "items":
             items = fields.get(ITEMS_KEY)
             if not isinstance(items, list):
                 return False
-            if not any(isinstance(item, dict) and item.get(spec.key) == expected for item in items):
+            if not any(
+                isinstance(item, dict) and _when_holds(item.get(spec.key, MISSING), op, operands)
+                for item in items
+            ):
                 return False
-        elif fields.get(spec.key) != expected:
+        elif not _when_holds(fields.get(spec.key, MISSING), op, operands):
             return False
     return True
+
+
+def _when_actual(declaration: Declaration, fields: dict, when: dict) -> str:
+    """``when`` 引用字段的实际取值（条件型规则的 detail 用，供审计回看）。"""
+    shown: list[str] = []
+    for path in when:
+        resolved = resolve_path(declaration, path)
+        if resolved is None or resolved[1] is None:
+            continue
+        scope, spec = resolved
+        if scope == "items":
+            items = fields.get(ITEMS_KEY)
+            values = (
+                [item.get(spec.key) for item in items if isinstance(item, dict)]
+                if isinstance(items, list)
+                else []
+            )
+            shown.append(f"{path}={values}")
+        else:
+            shown.append(f"{path}={fields.get(spec.key)}")
+    return "、".join(shown)
 
 
 def _operand(declaration: Declaration, fields: dict, item: dict | None, path: str):
@@ -137,18 +186,26 @@ def evaluate_rules(
     ledger_view: dict | None = None,
     baselines: list | None = None,
     occurred_at: str | None = None,
+    current_record_uid: str | None = None,
 ) -> RulesReport:
-    """按声明顺序判定全部 T1/T2/T3 规则。
+    """按声明顺序判定全部 T1/T2/T3 与条件型规则。
 
     T3（台账/跨记录）需要额外事实（§7.3）：``ledger_view``（同类型台账与关联
-    记录）、``baselines``（外部基线）、当前记录的 ``occurred_at``（排序与时间判定）。
+    记录）、``baselines``（外部基线）、当前记录的 ``occurred_at``（排序与时间判定）；
+    ``current_record_uid`` 为本次操作的记录 uid（可选，供 monotonic 排除自身 correct
+    链，提案 §5.3-1）——create 的新记录不在视图内，缺省即可。
     """
     report = RulesReport()
     for rule in declaration.pipeline_rules:
+        if rule.kind == "condition":
+            _evaluate_condition(declaration, rule, fields, report)  # 条件型：命中与否都出条目
+            continue
         if not when_matches(declaration, fields, rule.when):
             continue
         if rule.tier == 3:
-            _evaluate_t3(declaration, rule, fields, report, ledger_view, baselines, occurred_at)
+            _evaluate_t3(
+                declaration, rule, fields, report, ledger_view, baselines, occurred_at, current_record_uid
+            )
         else:
             _evaluate_rule(declaration, rule, fields, report)
     return report
@@ -203,6 +260,28 @@ def _evaluate_rule(declaration: Declaration, rule: RuleSpec, fields: dict, repor
         report.entries.append(
             _entry(rule, "skipped", "info", f"{rule.expr}：操作数缺省（记录未提供所需字段）")
         )
+
+
+def _evaluate_condition(declaration: Declaration, rule: RuleSpec, fields: dict, report: RulesReport) -> None:
+    """条件型规则判定（提案 §4.2）：``when`` 命中 → violation；未命中 → **pass**。
+
+    与 ``limit`` 不同，条件型规则**始终出条目**——审计要看得见「查过且通过」。
+    ``threshold`` 取 ``when`` 的规范化文本（``RuleSpec.threshold``），命中时 detail 附实际取值。
+    """
+    matched = when_matches(declaration, fields, rule.when)
+    actual = _when_actual(declaration, fields, rule.when)
+    if not matched:
+        report.entries.append(_entry(rule, "pass", "info", f"条件未命中（{actual}）：查过且通过"))
+        return
+    detail = f"条件命中（{actual}）：{rule.threshold}"
+    report.entries.append(_entry(rule, "violation", rule.level, detail))
+    if rule.level == "alarm":
+        report.alarm_candidates.append((rule.id, "记录"))
+    if rule.action:
+        if rule.action not in declaration.action_codes:
+            raise reject(rule.id, E_ACTION_CODE, f"建议动作码不在声明的 action_codes 内：{rule.action}")
+        if all(action["code"] != rule.action for action in report.actions):
+            report.actions.append({"code": rule.action, "text": f"{rule.id}：{detail}"})
 
 
 def _judge(declaration, rule, op, args, fields, item, value, series):
@@ -371,14 +450,20 @@ def _reset_window(occurred_at: str | None, reset: str | None) -> str | None:
     return None
 
 
-def _evaluate_t3(declaration, rule, fields, report, ledger_view, baselines, occurred_at) -> None:
+def _evaluate_t3(declaration, rule, fields, report, ledger_view, baselines, occurred_at, current_record_uid=None) -> None:
     """T3 规则判定：单一算子、单一结论条目（§7.3 归层原则）。"""
     op, _ = split_expr(rule.expr)
-    judge = _T3_JUDGES.get(op)
-    if judge is None:
-        report.entries.append(_entry(rule, "skipped", "info", f"{rule.expr}：未知 T3 算子"))
-        return
-    outcome = judge(declaration, rule, fields, ledger_view, baselines, occurred_at)
+    if op == "monotonic":
+        # 唯一需要「当前记录 uid」的 T3 算子（排除自身 correct 链，提案 §5.3-1），单独分派
+        outcome = _judge_monotonic(
+            declaration, rule, fields, ledger_view, baselines, occurred_at, current_record_uid
+        )
+    else:
+        judge = _T3_JUDGES.get(op)
+        if judge is None:
+            report.entries.append(_entry(rule, "skipped", "info", f"{rule.expr}：未知 T3 算子"))
+            return
+        outcome = judge(declaration, rule, fields, ledger_view, baselines, occurred_at)
     if outcome is None:
         report.entries.append(
             _entry(rule, "skipped", "info", f"{rule.expr}：操作数缺省（T3 需要台账/基线/时间事实）")
@@ -631,6 +716,76 @@ def _resolve_t3_value(fields: dict, ledger_view: dict | None, path: str, occurre
     return fields.get(path)
 
 
+def _judge_monotonic(declaration, rule, fields, ledger_view, baselines, occurred_at, current_record_uid=None):
+    """跨记录单调算子（提案 §5.3）：与**前一记录自身值**比较（不是聚合）。
+
+    前值选取六步：非 voided 同键候选 → 排除当前记录自身及其 correct 链（同 ``record_uid``）
+    → 取 ``confirmed_fields`` 优先 → 按 ``occurred_at`` 最大、``rev`` 降序、``record_uid``
+    字典序定序 → ``op`` 判定 → 不可判定（首次记录 / 前值非数值 / 超出 ``window``）出 ``skipped``。
+    账本行字段已冻结、无 ``create_seq``，同刻多版本以 ``rev`` 降序作序以保证确定性。
+    """
+    _, args = split_expr(rule.expr)
+    positional, kv = parse_kv(args)
+    resolved = resolve_path(declaration, positional[0])
+    if resolved is None or resolved[1] is None:
+        return None
+    spec = resolved[1]
+
+    current = _number(fields.get(spec.key, MISSING))
+    if current is None:
+        return None  # 本次读数缺省或非数值：不可判定
+
+    key_fields = split_key(kv["key"]) if "key" in kv else []
+    current_key = tuple(fields.get(name) for name in key_fields)
+    if key_fields and any(value is None for value in current_key):
+        return None
+
+    candidates: list[tuple] = []
+    for row in _active_rows(ledger_view):
+        if current_record_uid is not None and row.get("record_uid") == current_record_uid:
+            continue  # 排除当前记录自身及其 correct 链（§5.3-1），避免自比
+        row_fields = _row_fields(row)
+        if key_fields and tuple(row_fields.get(name) for name in key_fields) != current_key:
+            continue  # 分组隔离：不同键行互不比较（§5.5）
+        previous = _number(row_fields.get(spec.key, MISSING))
+        if previous is None:
+            continue  # 前值字段缺省或非数值：不构成候选（§5.3-5）
+        rev = row.get("rev")
+        candidates.append(
+            (
+                _safe_moment(row.get("occurred_at")),
+                rev if isinstance(rev, int) and not isinstance(rev, bool) else 0,
+                str(row.get("record_uid") or ""),
+                previous,
+                row.get("occurred_at"),
+            )
+        )
+    if not candidates:
+        return "skipped", "无有效前值行（首次记录）；单调性不可判，不静默通过"
+
+    candidates.sort(key=lambda item: (item[0] is not None, item[0], -item[1], item[2]))
+    moment, _, previous_uid, previous, previous_at = candidates[-1]
+
+    window = kv.get("window")
+    if window is not None:
+        days = float(window[:-1])
+        current_moment = _safe_moment(occurred_at)
+        if current_moment is None or moment is None:
+            return "skipped", f"时间不可解析（window={window}）：单调性不可判"
+        if (current_moment - moment).total_seconds() / 86400.0 > days:
+            return "skipped", f"前值 {previous_at} 超出窗口 {days} 天，视为无前值"
+
+    op = kv.get("op", "ge")
+    ok = current >= previous if op == "ge" else current > previous
+    symbol = "≥" if op == "ge" else ">"
+    return (
+        "pass" if ok else "violation",
+        f"单调核对：本次 {current} {symbol} 前值 {previous}（{previous_at}，{previous_uid}）"
+        f"：{'通过' if ok else '读数倒退'}",
+    )
+
+
+# monotonic 不在表内：它额外需要「当前记录 uid」（提案 §5.3-1），由 _evaluate_t3 单独分派
 _T3_JUDGES = {
     "continuity": _judge_continuity,
     "pairing": _judge_pairing,
