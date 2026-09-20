@@ -1,7 +1,7 @@
 # 设备测温（红外检测）记录簿声明（M2 转正批4 · item_list）
 # 依据：docs/dsl-gap-list.md 定稿 §5（字段表）+ §13 拍板（F1：δt% 人工报数起步）
 # 说明：δt% 人工报数（F1 拍板）；δt/温升限值与分级阈值待现场（§14）→ 规则段留 TODO；
-#       require_attachment（GAP-H5 条目附件绑定）待信封接口定稿后启用
+#       require_attachment（GAP-H5 条目附件绑定）待启用——机制=attachments_ref 可选 item_key，见 docs/shell-integration-guide.md 附录 C
 # 格式基准：docs/design.md §7.2（蓄电池示例）
 
 [meta]
@@ -59,7 +59,7 @@ key = "spot"
 name = "测点部位"
 type = "text"
 required = true
-# require_attachment = "photo"      # GAP-H5：每测点必附红外图——附件绑定到条目的机制待 M1 信封/校验接口定稿后启用
+# require_attachment = "photo"      # GAP-H5：每测点必附红外图——待启用（机制=attachments_ref 可选 item_key 绑定，见 docs/shell-integration-guide.md 附录 C；启用随现场接口定义）
 
 [[items.fields]]
 key = "measured_temp"

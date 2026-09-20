@@ -1,6 +1,7 @@
-# 错误码与告警码总表（规范附录草案）
+# 错误码与告警码总表（冻结版）
 
 - 依据：`src/records_kit` 代码实现（main 现状）+ 9 类已转正声明汇总；关联 #38 / #5（《壳层对接说明》附录接入点）
+- **状态：M3 冻结（2026-09-20）**——21 项错误码与本文词汇表随《壳层对接说明》（`docs/shell-integration-guide.md` 附录 A）冻结；**变更须 PR 同步双文档**。
 - 口径：**写入不等于完成**；错误只进 `validation.errors`（`{path, code, message}`），不静默通过；结果状态只有 `not_sent | unknown | verified | not_applied` 四值。
 - 层级：**记录级**（validation.errors 拒绝该次操作）/ **规则级**（rules 条目 verdict=violation/warn，不拒单、出告警候选）。
 
