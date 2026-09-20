@@ -149,6 +149,8 @@ def _dispatch(envelope: dict, registry: Registry, scope: dict) -> dict:
         ledger_view=ledger_view,
         baselines=baseline_rows,
         occurred_at=life.occurred_at,
+        # correct 场景账本视图里有同 record_uid 的旧版行：供 monotonic 排除自身 correct 链
+        current_record_uid=life.record.get("record_uid"),
     )
     trend_entries = trend_engine.evaluate_trend(declaration, life.fields, history_rows)
     alarm_state = alarm_engine.evaluate_alarm(
