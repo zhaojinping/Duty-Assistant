@@ -1,0 +1,39 @@
+{
+  "name": "surge-create-non-storm-violation",
+  "record_type": "surge_arrester_action_record",
+  "note": "合成样本（synthetic，占位站/人名）：大风（非雷雨）动作 → non_storm_action 条件命中 → violation(warn)（warn 级不进告警指纹，alarm_state.state=null 口径）→ actions_hint 含 REPORT_NON_STORM_ACTION；counter_monotonic 首笔 skipped",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "create",
+    "record_type": "surge_arrester_action_record",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "occurred_at": "2026-09-20T14:20:00+08:00",
+    "now": "2026-09-20T15:00:00+08:00",
+    "create_seq": 1,
+    "submitted_by": "张三",
+    "payload": {
+      "phase": "B",
+      "install_location": "母线侧",
+      "counter_reading": 1,
+      "weather": "大风"
+    }
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "record_uid": "ST001-surge_arrester_action_record-20260920-1420-1",
+      "rev": 1,
+      "lifecycle": "draft",
+      "signature_slots": [{ "slot": "记录人", "state": "pending" }],
+      "links": []
+    },
+    "rules": [
+      { "rule_id": "non_storm_action", "verdict": "violation", "level": "warn", "tier": 1, "detail_contains": "大风" },
+      { "rule_id": "counter_monotonic", "verdict": "skipped", "level": "info", "tier": 3 }
+    ],
+    "alarm_state": { "state": null, "suppressed": false, "evidence_contains": "无 alarm 级违规" },
+    "actions_hint": ["REPORT_NON_STORM_ACTION"],
+    "cycle": null
+  }
+}
