@@ -1,0 +1,75 @@
+# 保护投退记录簿声明（M2 转正批2 · flat，§13 拍板一行一动作）
+# 转正自 docs/dsl/protection_switch_record.toml（依据 docs/dsl-gap-list.md 定稿 §9 + §13 拍板）
+# 说明：复合列"装置及功能"按定稿 GAP-H3/E3 拆分为 device_id + function；dedupe_key 的
+#       occurred_minute 修正为 occurred_at（registry 派生键口径，同批1）；pairing 复合键用
+#       "+"连接（§13 拍板数组形式的字符串表达），动作判别引擎内置（投=占用/退=释放）；
+#       recover_in_time（GAP-H1/E2）时限 Nd 待现场，TODO 保留。
+
+[meta]
+record_type = "protection_switch_record"
+title = "保护投退记录簿"
+schema_version = "1.5"
+layout = "flat"                     # §13 拍板：一行=一动作，投/退跨记录配对
+dedupe_key = ["station", "occurred_at", "device_id", "function", "action"]
+link_types = []
+extra = "reject"
+signature_slots = ["操作人", "监护人"]
+action_codes = ["WARN_SWITCH_DANGLING", "WARN_SWITCH_REOCCUPY", "WARN_RECOVER_OVERDUE"]
+escalate_after = 3
+
+[[fields]]
+key = "device_id"
+name = "装置"
+type = "text"
+required = true                     # pairing 复合键成员 1
+
+[[fields]]
+key = "function"
+name = "功能"
+type = "text"
+required = true                     # pairing 复合键成员 2；模板括号"重合闸/主保护等"为开放集合，
+                                    # enum 化待现场钉死选项集后改声明（只改声明，引擎零改动）
+
+[[fields]]
+key = "action"
+name = "投/退"
+type = "enum"
+options = ["投", "退"]              # 模板括号自带；pairing 类型判别
+required = true
+
+[[fields]]
+key = "reason"
+name = "原因"
+type = "text"
+required = true
+
+[[fields]]
+key = "dispatch_order_no"
+name = "调度令号"
+type = "text"
+required = false
+
+[[fields]]
+key = "restored_at"
+name = "恢复时间"
+type = "datetime"
+required = false                    # 条件必填（退行必填于恢复时/投行恒空，GAP-H1）——
+                                    # required_when 语义待信封接口定稿后启用
+
+# ---- 规则段：#20 冻结文法转正 ----
+
+[[rules]]
+id = "switch_pairing"
+kind = "limit"
+tier = 3                            # T3 跨记录配对（§13 复合键）
+expr = "pairing:protection,key=device_id+function"
+level = "warn"                      # 重复投/悬空退均 warn；悬空占用半边归周期探针 detail
+
+# ---- 待现场项（TODO 保留，勿虚构数值）----
+# TODO rules:
+#   - id: recover_in_time
+#     kind = "limit" / tier = 3
+#     expr = "recovery_within:Nd,key=device_id+function"   # 恢复时限 Nd 待现场（GAP-H1/E2）
+#     action = "WARN_RECOVER_OVERDUE"
+# ---- 周期段 ----
+# 无周期（事件触发型）。脚注"纳入交接班交代"属交接班流程，不在本包范围。
