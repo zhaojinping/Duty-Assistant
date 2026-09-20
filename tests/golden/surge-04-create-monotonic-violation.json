@@ -1,0 +1,65 @@
+{
+  "name": "surge-create-monotonic-violation",
+  "record_type": "surge_arrester_action_record",
+  "note": "合成样本（synthetic，占位站/人名）：台账同键（B相/母线侧）前值 counter_reading=5（confirmed_fields 口径）→ 本次 4 < 5 → counter_monotonic violation(warn)（读数倒退；换表归零属业务合法倒退如实判违规，§5.5 不隐式复位）；warn 级不进告警指纹（state=null）；non_storm_action 雷雨未命中 → pass",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "create",
+    "record_type": "surge_arrester_action_record",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "occurred_at": "2026-09-20T16:10:00+08:00",
+    "now": "2026-09-20T16:30:00+08:00",
+    "create_seq": 3,
+    "submitted_by": "张三",
+    "ledger_view": {
+      "confirmed_digests": ["sha256:synthetic-placeholder-digest"],
+      "same_type_records": [
+        {
+          "record_uid": "ST001-surge_arrester_action_record-20260919-1600-1",
+          "lifecycle": "confirmed",
+          "rev": 1,
+          "occurred_at": "2026-09-19T16:00:00+08:00",
+          "digest": "sha256:synthetic-placeholder-digest",
+          "confirmed_fields": {
+            "phase": "B",
+            "install_location": "母线侧",
+            "counter_reading": 5,
+            "weather": "雷雨"
+          },
+          "fields": {
+            "phase": "B",
+            "install_location": "母线侧",
+            "counter_reading": 5,
+            "weather": "雷雨"
+          },
+          "dedupe_key_values": {}
+        }
+      ],
+      "linked_records": []
+    },
+    "payload": {
+      "phase": "B",
+      "install_location": "母线侧",
+      "counter_reading": 4,
+      "weather": "雷雨"
+    }
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "record_uid": "ST001-surge_arrester_action_record-20260920-1610-3",
+      "rev": 1,
+      "lifecycle": "draft",
+      "signature_slots": [{ "slot": "记录人", "state": "pending" }],
+      "links": []
+    },
+    "rules": [
+      { "rule_id": "non_storm_action", "verdict": "pass", "level": "info", "tier": 1 },
+      { "rule_id": "counter_monotonic", "verdict": "violation", "level": "warn", "tier": 3, "detail_contains": "读数倒退" }
+    ],
+    "alarm_state": { "state": null, "suppressed": false, "evidence_contains": "无 alarm 级违规" },
+    "actions_hint": ["CHECK_COUNTER_ABNORMAL"],
+    "cycle": null
+  }
+}
