@@ -1,13 +1,16 @@
 {
   "name": "surge-create-storm-action",
   "record_type": "surge_arrester_action_record",
-  "note": "合成样本（synthetic，占位站/人名）：雷雨天气动作一条，全部字段在界内 → 无规则告警；周期规则不进 create 流水线，trend 段未声明 → 空数组",
+  "note": "合成样本（synthetic，占位站/人名）：雷雨天气动作 → non_storm_action 条件未命中仍出 pass 条目（条件型始终出条目）；首笔记录 counter_monotonic 无前值 → skipped；每月周期规则不进 create 流水线",
   "envelope": {
     "protocol": "records-kit",
     "protocol_version": "1.5",
     "operation": "create",
     "record_type": "surge_arrester_action_record",
-    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "station": {
+      "station_id": "ST001",
+      "station_name": "XX风电场"
+    },
     "occurred_at": "2026-09-17T14:20:00+08:00",
     "now": "2026-09-17T15:00:00+08:00",
     "create_seq": 1,
@@ -26,11 +29,34 @@
       "record_uid": "ST001-surge_arrester_action_record-20260917-1420-1",
       "rev": 1,
       "lifecycle": "draft",
-      "signature_slots": [{ "slot": "记录人", "state": "pending" }],
+      "signature_slots": [
+        {
+          "slot": "记录人",
+          "state": "pending"
+        }
+      ],
       "links": []
     },
-    "rules": [],
-    "alarm_state": { "state": null, "suppressed": false, "evidence_contains": "无 alarm 级违规" },
+    "rules": [
+      {
+        "rule_id": "non_storm_action",
+        "verdict": "pass",
+        "level": "info",
+        "tier": 1,
+        "detail_contains": "雷雨"
+      },
+      {
+        "rule_id": "counter_monotonic",
+        "verdict": "skipped",
+        "level": "info",
+        "tier": 3
+      }
+    ],
+    "alarm_state": {
+      "state": null,
+      "suppressed": false,
+      "evidence_contains": "无 alarm 级违规"
+    },
     "actions_hint": [],
     "cycle": null
   }

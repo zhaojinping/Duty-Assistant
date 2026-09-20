@@ -63,12 +63,25 @@ tier = 1                             # 固定 1：归层原则约束的是 creat
 expr = "monthly"                     # 每月核对计数器底数（模板脚注明示，为周期值出处）
 # cycle_baseline：missing 判定起算日，待现场规程核对（主设 §12）
 
-# ---- 未转正规则（TODO：文法已拍板，待引擎实现后按此转正）----
-# TODO rules:
-#   - id: non_storm_action            # kind=limit / tier=1 / target=weather
-#     when = { weather = "not_in:雷雨" }          # when 值侧前缀微文法（主控 09-20 拍板）
-#     expr: (待引擎微文法实现定稿)                    # GAP-C1（脚注：非雷雨天气动作应检查上报）
-#     action: REPORT_NON_STORM_ACTION
-#   - id: counter_monotonic           # T3 框架（tier=3、不设 target、走 expr）：跨记录单调核对
-#     expr: (待单调算子入 #20 六算子族) 本次 < 上次 → warn
-#     action: CHECK_COUNTER_ABNORMAL             # GAP-A3（脚注：每月核对计数器底数）
+# ---- 非雷雨天气动作（GAP-C1，脚注：非雷雨天气动作应检查上报）----
+# 条件型规则（dsl-grammar-ext-proposal §4）：when 命中 → violation；未命中 → pass（始终出条目）。
+
+[[rules]]
+id = "non_storm_action"
+kind = "condition"
+tier = 1                             # when 只读本记录 payload
+when = { weather = "not_in:雷雨" }   # when 值侧前缀微文法（主控拍板）
+level = "warn"
+action = "REPORT_NON_STORM_ACTION"
+
+# ---- 计数器累计读数单调核对（GAP-A3，脚注：每月核对计数器底数）----
+# T3 跨记录单调（proposal §5）：本次 ≥ 前值 → pass；倒退 → violation（换表归零属业务合法
+# 倒退，如实判违规由现场志记处理，§5.5 不引入隐式复位）。分组隔离：同相别+安装位置互比。
+
+[[rules]]
+id = "counter_monotonic"
+kind = "limit"
+tier = 3
+expr = "monotonic:counter_reading,key=phase+install_location,op=ge"
+level = "warn"
+action = "CHECK_COUNTER_ABNORMAL"
