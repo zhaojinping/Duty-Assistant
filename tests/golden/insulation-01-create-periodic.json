@@ -1,0 +1,43 @@
+{
+  "name": "insulation-create-periodic",
+  "record_type": "insulation_test_record",
+  "note": "合成样本（synthetic，占位站/人名）：定期试验一条，吸收比为人工填报值（r60/r15=1.5，双源口径），极化指数人工报数（§14 拍板）→ 无流水线告警；限值类规则未转正 → rules 空",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "create",
+    "record_type": "insulation_test_record",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "occurred_at": "2026-09-19T10:10:00+08:00",
+    "now": "2026-09-19T14:00:00+08:00",
+    "create_seq": 1,
+    "submitted_by": "张三",
+    "payload": {
+      "device_name": "35kV母线TV（合成占位）",
+      "test_kind": "定期",
+      "r15": 100.0,
+      "r60": 150.0,
+      "absorption_ratio": 1.5,
+      "polarization_index": 2.0,
+      "instrument_id": "MET-05（合成占位）",
+      "test_voltage_kv": 2.5,
+      "env_temp": 24.0,
+      "env_humidity": 55.0,
+      "conclusion": "合格"
+    }
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "record_uid": "ST001-insulation_test_record-20260919-1010-1",
+      "rev": 1,
+      "lifecycle": "draft",
+      "signature_slots": [{ "slot": "试验人", "state": "pending" }],
+      "links": []
+    },
+    "rules": [],
+    "alarm_state": { "state": null, "suppressed": false, "evidence_contains": "无 alarm 级违规" },
+    "actions_hint": [],
+    "cycle": null
+  }
+}

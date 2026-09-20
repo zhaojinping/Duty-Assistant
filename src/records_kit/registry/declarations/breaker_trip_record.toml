@@ -1,0 +1,72 @@
+# 断路器跳闸记录簿声明（M2 转正批1 · flat）
+# 转正自 docs/dsl/breaker_trip_record.toml（依据 docs/dsl-gap-list.md 定稿 §1 + §13/§14 拍板）
+# 说明：本类规则全部为 T3（aggregate+external_baseline，§13 拍板形态）——
+#       按派工指令 T3 规则留待引擎接口冻结后转正，TODO 注释保留于文末。
+
+[meta]
+record_type = "breaker_trip_record"
+title = "断路器跳闸记录簿"
+schema_version = "1.5"
+layout = "flat"                      # 横表台账：一行 = 一次跳闸
+dedupe_key = ["station", "occurred_at", "breaker_id"]
+# ↑ 定稿骨架原写 occurred_minute；registry 校验的派生键仅 station/occurred_day/occurred_at，
+#   转正按 occurred_at 落（同刻同开关两条即重复，业务等价）。
+link_types = []                      # 暂无跨记录关系
+extra = "reject"                     # 未知字段默认拒绝
+signature_slots = ["记录人"]          # 只读留白，人签（铁律 7）
+action_codes = ["TRACK_TRIP_COUNT", "REPORT_BASELINE_APPROACH"]
+escalate_after = 3
+
+# ---- 记录级字段：模板 8 列（跳闸时间进 occurred_at、站名进信封、记录人进签名槽，其余 5 列）----
+
+[[fields]]
+key = "breaker_id"
+name = "开关编号"
+type = "text"
+required = true                      # T3 aggregate 分组键 + 基线查询键（keyed-by-device，§13 拍板）
+
+[[fields]]
+key = "protection_action"
+name = "保护动作情况"
+type = "text"
+required = true                      # 自由描述（可能多段），不枚举化（§14 拍板确认保 text）
+
+[[fields]]
+key = "reclose_status"
+name = "重合闸情况"
+type = "enum"
+options = ["成功", "不成功", "未投", "拒动"]   # §14 拍板四值；现场口语在壳层映射表归一
+required = true
+
+[[fields]]
+key = "trip_count"
+name = "累计跳闸次数"
+type = "number"
+decimals = 0
+min = 1.0
+required = true                      # 人工累计 vs 核心 aggregate 双源（GAP-H6）
+
+[[fields]]
+key = "weather_note"
+name = "天气及异常情况"
+type = "text"
+required = false
+
+# ---- 规则段：T3 按 #20 冻结文法转正（tier=3、不设 target、一律走 expr）----
+
+[[rules]]
+id = "trip_approaching"
+kind = "limit"
+tier = 3
+expr = "aggregate:count_over,key=breaker_id,ref=BL_BREAKER_TRIP_LIMIT"
+# 语义：按 breaker_id 累计同分组非 voided 跳闸数（含当前），≥ 基线允许值 → violation（§13 拍板：
+# 缺省不复位、keyed-by-device）。基线数值由壳层注入 baselines（ref=BL_BREAKER_TRIP_LIMIT，
+# 数值待现场 §14，声明只写 ref）；缺 ref 数据 → E_BASELINE_MISSING 记录级拒绝（引擎语义）。
+level = "alarm"
+action = "REPORT_BASELINE_APPROACH"          # 脚注：接近允许事故开闸次数时重点跟踪
+
+# ---- 未转正规则（TODO：待引擎算子扩展，见 docs/dsl/ 草案同段）----
+# TODO rules:
+#   - id: trip_count_check            # 人工累计 vs aggregate 计算一致性核对（GAP-H6 双源，算子待 M2）
+# ---- 周期段 ----
+# 无周期（事件触发型）。

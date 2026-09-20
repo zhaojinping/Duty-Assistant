@@ -1,0 +1,56 @@
+# 防小动物检查记录簿声明（M2 转正冲刺批 · item_list，纯条目类）
+# 转正自 docs/dsl/rodent_proof_check_record.toml（依据 docs/dsl-gap-list.md 定稿 §10）
+# 说明：本类无记录级业务字段（检查日期进 occurred_at、检查人进签名槽），
+#       按主控派工起手①显式声明根级 fields = []（registry 校验要求该键存在）。
+#       雨季/秋季重点期的日历窗口 when（GAP-C2/C3）文法未拍，规则留 TODO。
+
+# 注意：根级键必须位于任何表头（[meta]/[items]）之前（TOML 语法约束），fields = [] 故置于文件顶部。
+
+fields = []                          # 纯条目类：显式空数组（registry 校验要求该键存在）
+
+[meta]
+record_type = "rodent_proof_check_record"
+title = "防小动物检查记录簿"
+schema_version = "1.5"
+layout = "item_list"                 # 一次检查多部位：一行 = 一部位条目
+dedupe_key = ["station", "occurred_day"]
+link_types = []                      # 暂无跨记录关系
+extra = "reject"                     # 未知字段默认拒绝
+signature_slots = ["检查人"]          # 只读留白，人签（铁律 7）
+action_codes = ["REPORT_ISSUE", "URGE_BLOCK_HOLE"]
+escalate_after = 3
+
+# ---- 条目容器：检查部位条目（key_field 用模板已有枚举列，不新增模板外逻辑列）----
+
+[items]
+key_field = "spot"
+
+[[items.fields]]
+key = "spot"
+name = "检查部位"
+type = "enum"
+options = ["配电室", "电缆沟", "挡鼠板", "门窗孔洞"]   # 模板括号自带 4 选项
+required = true
+
+[[items.fields]]
+key = "issue_found"
+name = "发现问题"
+type = "text"
+required = false                     # 保持 text+空语义（无问题留空/写"无"，定稿决策项口径）
+
+[[items.fields]]
+key = "action_taken"
+name = "处理措施"
+type = "text"
+required = false                     # 条件必填（发现非空 → 必填，GAP-H4）——
+                                     # required_when 语义待 M1 后续信封接口定稿后启用
+
+# ---- 未转正规则（TODO：待日历窗口 when 文法拍板，见 docs/dsl/ 草案同段）----
+# TODO rules:
+#   - id: issue_action_check         # 发现问题非空而处理措施为空 → warn（GAP-H4 条件必填的规则侧配套）
+#     action: URGE_BLOCK_HOLE
+#   - id: key_period_intensify       # 雨季/秋季重点期周期缩短 → when 日历窗口扩展（GAP-C2/C3）
+# ---- 周期段（TODO）----
+# TODO cycle:
+#   - periodic:Nd                    # 待现场（制度汇编仅见"定期检查防小动物设施"，无周期数值）
+#     cycle_baseline = ?             # 待现场（§12）

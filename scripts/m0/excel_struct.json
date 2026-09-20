@@ -1,0 +1,3452 @@
+{
+ "breaker_trip_record": {
+  "file": "断路器跳闸记录簿.xlsx",
+  "exists": true,
+  "sheets": [
+   {
+    "sheet": "断路器跳闸记录簿",
+    "dims": "A1:H25",
+    "max_row": 25,
+    "max_col": 8,
+    "merged": [
+     "A2:B2",
+     "A25:H25",
+     "D2",
+     "C2",
+     "A1:H1"
+    ],
+    "rows": [
+     {
+      "r": 1,
+      "vals": [
+       "断路器跳闸记录簿",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 2,
+      "vals": [
+       "站名：",
+       null,
+       "年　月：",
+       "值　次：",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 3,
+      "vals": [
+       "跳闸时间",
+       "站名",
+       "开关编号",
+       "保护动作情况",
+       "重合闸情况",
+       "累计跳闸次数",
+       "天气及异常情况",
+       "记录人"
+      ]
+     },
+     {
+      "r": 4,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 5,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 6,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 7,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 8,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 9,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 10,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 11,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 12,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：断路器每次跳闸均应记录；接近“允许事故开闸次数”时重点跟踪。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "surge_arrester_action_record": {
+  "file": "避雷器动作记录簿.xlsx",
+  "exists": true,
+  "sheets": [
+   {
+    "sheet": "避雷器动作记录簿",
+    "dims": "A1:G25",
+    "max_row": 25,
+    "max_col": 7,
+    "merged": [
+     "C2",
+     "A2:B2",
+     "A1:G1",
+     "A25:G25"
+    ],
+    "rows": [
+     {
+      "r": 1,
+      "vals": [
+       "避雷器动作记录簿",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 2,
+      "vals": [
+       "站名：",
+       null,
+       "年　月：",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 3,
+      "vals": [
+       "动作时间",
+       "相别(A/B/C)",
+       "安装位置(线路侧/母线侧)",
+       "计数器累计读数",
+       "动作电流(kA)",
+       "天气(雷雨等)",
+       "记录人"
+      ]
+     },
+     {
+      "r": 4,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 5,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 6,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 7,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 8,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 9,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 10,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 11,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 12,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：避雷器动作后记录；每月核对计数器底数；非雷雨天气动作应检查上报。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "grounding_wire_record": {
+  "file": "接地线装拆记录簿.xlsx",
+  "exists": true,
+  "sheets": [
+   {
+    "sheet": "接地线装拆记录簿",
+    "dims": "A1:G25",
+    "max_row": 25,
+    "max_col": 7,
+    "merged": [
+     "C2",
+     "A2:B2",
+     "A1:G1",
+     "A25:G25"
+    ],
+    "rows": [
+     {
+      "r": 1,
+      "vals": [
+       "接地线装拆记录簿",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 2,
+      "vals": [
+       "站名：",
+       null,
+       "年：",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 3,
+      "vals": [
+       "类别(装设/拆除)",
+       "时间",
+       "接地线编号",
+       "装设地点(设备编号)",
+       "命令来源(令号/票号)",
+       "操作人",
+       "监护人"
+      ]
+     },
+     {
+      "r": 4,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 5,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 6,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 7,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 8,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 9,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 10,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 11,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 12,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：交接班须交代使用中接地线及装设地点；工作票终结后应及时拆除。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "two_ticket_ledger": {
+  "file": "两票登记记录簿.xlsx",
+  "exists": true,
+  "sheets": [
+   {
+    "sheet": "两票（工作票／操作票）登记记录簿",
+    "dims": "A1:I25",
+    "max_row": 25,
+    "max_col": 9,
+    "merged": [
+     "A1:I1",
+     "A25:I25",
+     "A2:B2",
+     "C2"
+    ],
+    "rows": [
+     {
+      "r": 1,
+      "vals": [
+       "两票（工作票/操作票）登记记录簿",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 2,
+      "vals": [
+       "站名：",
+       null,
+       "年：",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 3,
+      "vals": [
+       "票种",
+       "编号",
+       "工作(操作)任务",
+       "工作(操作)负责人",
+       "许可人",
+       "签发人",
+       "开始时间",
+       "结束时间",
+       "合格率评价"
+      ]
+     },
+     {
+      "r": 4,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 5,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 6,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 7,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 8,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 9,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 10,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 11,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 12,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：操作票按年编号装订、工作票按月编号装订，封面统计数字，保存期一年。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "infrared_thermography_record": {
+  "file": "设备测温记录簿.xlsx",
+  "exists": true,
+  "sheets": [
+   {
+    "sheet": "设备测温（红外检测）记录簿",
+    "dims": "A1:K25",
+    "max_row": 25,
+    "max_col": 11,
+    "merged": [
+     "A1:K1",
+     "A2:B2",
+     "C2",
+     "A25:K25"
+    ],
+    "rows": [
+     {
+      "r": 1,
+      "vals": [
+       "设备测温（红外检测）记录簿",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 2,
+      "vals": [
+       "站名：",
+       null,
+       "年　月：",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 3,
+      "vals": [
+       "测温时间",
+       "设备名称",
+       "测点部位",
+       "环境温度(℃)",
+       "负荷电流(A)",
+       "实测温度(℃)",
+       "相间温差(K)",
+       "相对温差δt",
+       "缺陷判定",
+       "仪器编号",
+       "记录人"
+      ]
+     },
+     {
+      "r": 4,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 5,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 6,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 7,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 8,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 9,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 10,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 11,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 12,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：定期测温；过负荷、高温天气、新投设备应加强测温。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "insulation_test_record": {
+  "file": "绝缘测试记录簿.xlsx",
+  "exists": true,
+  "sheets": [
+   {
+    "sheet": "绝缘测试记录簿",
+    "dims": "A1:K25",
+    "max_row": 25,
+    "max_col": 11,
+    "merged": [
+     "A1:K1",
+     "A2:B2",
+     "C2",
+     "A25:K25"
+    ],
+    "rows": [
+     {
+      "r": 1,
+      "vals": [
+       "绝缘测试记录簿",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 2,
+      "vals": [
+       "站名：",
+       null,
+       "年：",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 3,
+      "vals": [
+       "试验日期",
+       "设备名称",
+       "试验性质(定期/检修后)",
+       "R15s(MΩ)",
+       "R60s(MΩ)",
+       "吸收比",
+       "极化指数",
+       "仪器及电压等级",
+       "环境温湿度",
+       "结论",
+       "试验人"
+      ]
+     },
+     {
+      "r": 4,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 5,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 6,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 7,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 8,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 9,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 10,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 11,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 12,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：按规程周期进行绝缘测试并记录。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "battery_voltage_test": {
+  "file": "蓄电池电压测试记录簿.xlsx",
+  "exists": true,
+  "sheets": [
+   {
+    "sheet": "蓄电池电压测试记录簿",
+    "dims": "A1:E27",
+    "max_row": 27,
+    "max_col": 5,
+    "merged": [
+     "B2:C2",
+     "A2",
+     "A1:E1",
+     "D2",
+     "E2",
+     "C3:D3",
+     "A3:B3",
+     "A27:E27"
+    ],
+    "rows": [
+     {
+      "r": 1,
+      "vals": [
+       "蓄电池电压测试记录簿",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 2,
+      "vals": [
+       "测试日期：",
+       "直流系统编号：",
+       null,
+       "浮充电压(V)：",
+       "浮充电流(A)："
+      ]
+     },
+     {
+      "r": 3,
+      "vals": [
+       "环境温度(℃)：",
+       null,
+       "测试性质(定期/核对性放电)：",
+       null,
+       "测试人："
+      ]
+     },
+     {
+      "r": 4,
+      "vals": [
+       "电池序号",
+       "单体电压(V)",
+       "是否落后电池",
+       "备注",
+       "复测值(V)"
+      ]
+     },
+     {
+      "r": 5,
+      "vals": [
+       "1",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 6,
+      "vals": [
+       "2",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 7,
+      "vals": [
+       "3",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 8,
+      "vals": [
+       "4",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 9,
+      "vals": [
+       "5",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 10,
+      "vals": [
+       "6",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 11,
+      "vals": [
+       "7",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 12,
+      "vals": [
+       "8",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       "9",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       "10",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       "11",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       "12",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       "13",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       "14",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       "15",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       "16",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       "17",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       "18",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       "19",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       "20",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 26,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 27,
+      "vals": [
+       "填写说明：电池序号按实际数量增删；AI自动做电压一致性分析并标记落后电池、给更换建议。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "transformer_core_clamp_current_record": {
+  "file": "主变铁芯夹件电流测试记录簿.xlsx",
+  "exists": true,
+  "sheets": [
+   {
+    "sheet": "主变铁芯／夹件接地电流测试记录簿",
+    "dims": "A1:H25",
+    "max_row": 25,
+    "max_col": 8,
+    "merged": [
+     "A25:H25",
+     "A2:B2",
+     "C2",
+     "A1:H1"
+    ],
+    "rows": [
+     {
+      "r": 1,
+      "vals": [
+       "主变铁芯/夹件接地电流测试记录簿",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 2,
+      "vals": [
+       "站名：",
+       null,
+       "年：",
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 3,
+      "vals": [
+       "测试日期",
+       "主变编号",
+       "铁芯接地电流(mA)",
+       "夹件接地电流(mA)",
+       "负荷情况",
+       "与上次对比",
+       "结论",
+       "测试人"
+      ]
+     },
+     {
+      "r": 4,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 5,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 6,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 7,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 8,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 9,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 10,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 11,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 12,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：定期测试主变铁芯及夹件接地电流；电流异常增大应安排停运检查。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "protection_switch_record": {
+  "file": "保护投退记录簿.xlsx",
+  "exists": true,
+  "sheets": [
+   {
+    "sheet": "保护投退记录簿",
+    "dims": "A1:H25",
+    "max_row": 25,
+    "max_col": 8,
+    "merged": [
+     "A25:H25",
+     "A2:B2",
+     "C2",
+     "A1:H1"
+    ],
+    "rows": [
+     {
+      "r": 1,
+      "vals": [
+       "保护投退记录簿",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 2,
+      "vals": [
+       "站名：",
+       null,
+       "年：",
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 3,
+      "vals": [
+       "时间",
+       "装置及功能(重合闸/主保护等)",
+       "投/退",
+       "原因",
+       "调度令号",
+       "操作人",
+       "监护人",
+       "恢复时间"
+      ]
+     },
+     {
+      "r": 4,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 5,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 6,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 7,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 8,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 9,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 10,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 11,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 12,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：保护及自动装置投退变更情况纳入交接班交代。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "rodent_proof_check_record": {
+  "file": "防小动物检查记录簿.xlsx",
+  "exists": true,
+  "sheets": [
+   {
+    "sheet": "防小动物检查记录簿",
+    "dims": "A1:E25",
+    "max_row": 25,
+    "max_col": 5,
+    "merged": [
+     "A1:E1",
+     "A2:B2",
+     "C2",
+     "A25:E25"
+    ],
+    "rows": [
+     {
+      "r": 1,
+      "vals": [
+       "防小动物检查记录簿",
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 2,
+      "vals": [
+       "站名：",
+       null,
+       "年　月：",
+       null,
+       null
+      ]
+     },
+     {
+      "r": 3,
+      "vals": [
+       "检查日期",
+       "检查部位(配电室/电缆沟/挡鼠板/门窗孔洞)",
+       "发现问题",
+       "处理措施",
+       "检查人"
+      ]
+     },
+     {
+      "r": 4,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 5,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 6,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 7,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 8,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 9,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 10,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 11,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 12,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 13,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 14,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 15,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 16,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 17,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 18,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 19,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 20,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 21,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 22,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 23,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 24,
+      "vals": [
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     },
+     {
+      "r": 25,
+      "vals": [
+       "填写说明：制度要求：定期检查防小动物设施，孔洞封堵完好。　依据《协合运维生产管理制度汇编2023版》三章§5.3生成；AI可辅助生成草稿并自动归集，签字确认后生效。",
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

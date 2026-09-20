@@ -1,0 +1,50 @@
+{
+  "name": "breaker-create-trip",
+  "record_type": "breaker_trip_record",
+  "note": "合成样本（synthetic，占位站/人名）：一次跳闸登记（重合成功），全部字段在界内 → 无流水线告警；规则全为 T3 未转正 → rules 空；无周期（事件触发型）",
+  "envelope": {
+    "protocol": "records-kit",
+    "protocol_version": "1.5",
+    "operation": "create",
+    "record_type": "breaker_trip_record",
+    "station": { "station_id": "ST001", "station_name": "XX风电场" },
+    "occurred_at": "2026-09-17T13:05:00+08:00",
+    "now": "2026-09-17T15:00:00+08:00",
+    "create_seq": 1,
+    "submitted_by": "张三",
+    "baselines": [
+      {
+        "ref": "BL_BREAKER_TRIP_LIMIT",
+        "kind": "count_table",
+        "name": "允许事故开闸次数表（合成占位数值）",
+        "data": { "QF-101": 20 }
+      }
+    ],
+    "ledger_view": {
+      "confirmed_digests": [],
+      "same_type_records": [],
+      "linked_records": []
+    },
+    "payload": {
+      "breaker_id": "QF-101",
+      "protection_action": "过流I段动作（合成描述）",
+      "reclose_status": "成功",
+      "trip_count": 2,
+      "weather_note": "雷雨（合成备注）"
+    }
+  },
+  "expect": {
+    "status": "ok",
+    "record": {
+      "record_uid": "ST001-breaker_trip_record-20260917-1305-1",
+      "rev": 1,
+      "lifecycle": "draft",
+      "signature_slots": [{ "slot": "记录人", "state": "pending" }],
+      "links": []
+    },
+    "rules": [],
+    "alarm_state": { "state": null, "suppressed": false, "evidence_contains": "无 alarm 级违规" },
+    "actions_hint": [],
+    "cycle": null
+  }
+}
