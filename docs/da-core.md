@@ -37,6 +37,7 @@
 | `reconcile` | 表↔账本对账（只读；无账本UID的行按 legacy 计数） |
 | `cycle --set-baseline/--set-cycle-days` | 周期配置 |
 | `pull-group [--limit] [--dry-run] [--no-reply]` | 群消息接入口：拉群 → 降级提交入库 → 群内回执（游标防重放） |
+| `pull-remote --base-url [--token] [--dry-run]` | 拉取式输入源：从应用侧只读接口拉取新提交（内网零暴露；幂等=client_submission_id；契约见 `docs/input-channel-v2.md`） |
 | `report [--month YYYY-MM] [--json]` | 月报：按时率/测量/更正作废/触达（只读） |
 | `inspect` | 账本概览（各表计数） |
 

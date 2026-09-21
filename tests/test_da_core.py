@@ -698,6 +698,45 @@ def test_monthly_report_counts(tmp_path):
     assert "——AI助手" in report["text"]
 
 
+def test_pull_remote_process_and_idempotent_rescan(tmp_path):
+    from da_core import pull_intake
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+
+    calls = {"n": 0}
+
+    def fetcher(url, token):
+        calls["n"] += 1
+        assert token == "tok-1"
+        if calls["n"] <= 2:  # 同一笔喂两次：模拟游标丢失后重扫
+            return {"items": [submission_12v(client_submission_id="pull-001")],
+                    "next_cursor": "c-1"}
+        return {"items": [], "next_cursor": "c-1"}
+
+    first = pull_intake.pull_remote(ledger, settings, base_url="https://example.test",
+                                    token="tok-1", fetcher=fetcher, dispatch=False)
+    assert first["fetched"] == 1
+    assert first["processed"][0]["ok"] is True
+    assert first["processed"][0]["replayed"] is False
+    assert first["cursor"] == "c-1"
+    assert ledger.get_param(pull_intake.CURSOR_PARAM)["cursor"] == "c-1"
+    assert ledger.counts()["records"] == 1
+
+    second = pull_intake.pull_remote(ledger, settings, base_url="https://example.test",
+                                     token="tok-1", fetcher=fetcher, dispatch=False)
+    assert second["processed"][0]["replayed"] is True
+    assert ledger.counts()["records"] == 1  # 未产生第二条记录
+
+    def bad_fetcher(url, token):
+        raise OSError("boom")
+
+    with pytest.raises(RuntimeError):
+        pull_intake.pull_remote(ledger, settings, base_url="https://example.test",
+                                token="tok-1", fetcher=bad_fetcher, dispatch=False)
+    assert ledger.get_param(pull_intake.CURSOR_PARAM)["cursor"] == "c-1"  # 失败不推进
+
+
 MANGLED_MESSAGE = (
     "**蓄电池电压测量数据**  \n**提交时间: 2026-09-21 11:47**  \n"
     "[组别] 3号组(12只) [温度] 23 [数量] 2/12\u3000[合格区间] 13.20~13.80V "
