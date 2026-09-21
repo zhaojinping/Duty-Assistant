@@ -703,19 +703,35 @@ def test_pull_remote_process_and_idempotent_rescan(tmp_path):
 
     settings = make_settings(tmp_path)
     ledger = Ledger(settings.db_path)
+    ledger.set_contact("ST001", "reminder_group", "APM测试", updated_by="测试")
+
+    seen_urls = []
+    sent = []
+
+    def send_runner(args):
+        sent.append(list(args))
+        return 0, '{"ok": true}', ""
+
+    def wrap(submission):
+        return {"seq": 1, "received_at": "2026-09-21T14:58:00+08:00",
+                "payload": submission}
 
     calls = {"n": 0}
 
     def fetcher(url, token):
+        seen_urls.append(url)
         calls["n"] += 1
         assert token == "tok-1"
         if calls["n"] <= 2:  # 同一笔喂两次：模拟游标丢失后重扫
-            return {"items": [submission_12v(client_submission_id="pull-001")],
-                    "next_cursor": "c-1"}
-        return {"items": [], "next_cursor": "c-1"}
+            return {"items": [wrap(submission_12v(client_submission_id="pull-001"))],
+                    "next_cursor": "c-1", "has_more": False}
+        return {"items": [], "next_cursor": "c-1", "has_more": False}
 
     first = pull_intake.pull_remote(ledger, settings, base_url="https://example.test",
-                                    token="tok-1", fetcher=fetcher, dispatch=False)
+                                    token="tok-1", fetcher=fetcher, dispatch=False,
+                                    notify_group=True, runner=send_runner)
+    assert "since=0" in seen_urls[0]  # 游标初始 0（对接规约）
+    assert sent and any("✅ 已入库" in str(arg) for arg in sent[0])  # 入库回执已发群
     assert first["fetched"] == 1
     assert first["processed"][0]["ok"] is True
     assert first["processed"][0]["replayed"] is False
@@ -725,8 +741,10 @@ def test_pull_remote_process_and_idempotent_rescan(tmp_path):
 
     second = pull_intake.pull_remote(ledger, settings, base_url="https://example.test",
                                      token="tok-1", fetcher=fetcher, dispatch=False)
+    assert "since=c-1" in seen_urls[-1]
     assert second["processed"][0]["replayed"] is True
     assert ledger.counts()["records"] == 1  # 未产生第二条记录
+    assert len(sent) == 1  # 重放不重复回执
 
     def bad_fetcher(url, token):
         raise OSError("boom")
