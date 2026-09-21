@@ -56,6 +56,7 @@ uv run python scripts/da_daily.py --db <ledger.sqlite> \
   task_events / deferrals / config_thresholds / config_contacts / config_params /
   ops_audit / intake_receipts。
 - 一切写操作留审计（ops_audit）；触达留回执（task_events，含失败与重试计数）。
+- tasks 状态机：open / overdue → done（按时）、done_late（迟到）、**rebased**（周期配置变更滚期产物，达成统计不计入，勿混入考核口径）。
 
 ## 触达语义（outbox）
 

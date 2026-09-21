@@ -121,10 +121,13 @@ def sync_tasks(ledger, settings, *, now: str | None = None) -> dict:
             continue
 
         if current is not None:
-            late = bool(
-                item["last_done_at"]
-                and _wall_date(item["last_done_at"]) > _dt.date.fromisoformat(current["due_at"]))
-            final_state = "done_late" if late else "done"
+            if item["last_done_at"] is None:
+                # 周期配置（baseline）变更导致的滚期：无完成记录，不冒充 done
+                final_state = "rebased"
+            else:
+                late = bool(
+                    _wall_date(item["last_done_at"]) > _dt.date.fromisoformat(current["due_at"]))
+                final_state = "done_late" if late else "done"
             ledger.close_task(current["task_id"], state=final_state, closed_at=iso_now())
             actions["closed"].append({"task_id": current["task_id"], "state": final_state})
 
