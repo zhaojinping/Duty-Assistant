@@ -346,10 +346,11 @@ def _judge(declaration, rule, op, args, fields, item, value, series):
             return "skipped", f"deviation 基准为 0（{base_spec}），不可计算相对偏差"
         deviation = abs(number - base) / abs(base) * 100
         ok = deviation <= limit
+        operator = "≤" if ok else ">"
         return (
             "pass" if ok else "violation",
             f"{_label_text(declaration, item)} 取值 {number}，基准 {base_spec}={round(base, 4)}，"
-            f"偏差 {round(deviation, 4)}% ≤ {limit}%：{'通过' if ok else '越界'}",
+            f"偏差 {round(deviation, 4)}% {operator} {limit}%：{'通过' if ok else '越界'}",
         )
     if op == "diff":
         left = _number(_operand(declaration, fields, item, args[0]))

@@ -6,7 +6,7 @@
 ## 模块图
 
 ```
-输入 ─ intake（提交解析/信封组装）
+输入 ─ intake（提交解析/信封组装）／group_intake（群消息接入口：降级文本 → 核心）
         ↓
    engine_gate（注册表注入：阈值按口径覆盖）→ records_kit.process（纯引擎判定）
         ↓
@@ -18,7 +18,8 @@
         ↓
    escalation（升级链六级，幂等）→ outbox（群消息 + 待办 + DM，回执留痕）
         ↓
-   table_projection（钉钉 AI 表格逐行投影，单一写者）／reconcile（表↔账本对账，只读）
+   table_projection（钉钉 AI 表格逐行投影，单一写者；含更正/作废行同步）
+   ／reconcile（表↔账本对账，只读）／reporting（月报与按时率，只读）
 ```
 
 ## CLI 一览（`python -m da_core.cli <命令>`）
@@ -26,8 +27,8 @@
 | 命令 | 用途 |
 |---|---|
 | `submit` | 提交（`--dispatch` 写投影 / `--dry-run` 演练 / `--remark-tag` 联调标记） |
-| `correct` | 定稿更正（全量替换 payload，免签自动重新定稿） |
-| `void` | 作废（墓碑占号，判重键释放） |
+| `correct` | 定稿更正（全量替换 payload，免签自动重新定稿；默认同步表格行） |
+| `void` | 作废（墓碑占号，判重键释放；默认同步表格状态列） |
 | `scan [--sync] [--now]` | 周期扫描：只读视图 / 落 tasks 台账（`--now` 模拟时刻） |
 | `escalate [--now] [--dry-run]` | 按升级链执行触达（幂等，每级每渠道一次） |
 | `notify [--task-id] [--dry-run]` | 按任务当前状态触达（联调/运维入口） |
@@ -35,6 +36,8 @@
 | `defer --task-id --until --reason --approved-by` | 延期（班长批），有效截止顺延 |
 | `reconcile` | 表↔账本对账（只读；无账本UID的行按 legacy 计数） |
 | `cycle --set-baseline/--set-cycle-days` | 周期配置 |
+| `pull-group [--limit] [--dry-run] [--no-reply]` | 群消息接入口：拉群 → 降级提交入库 → 群内回执（游标防重放） |
+| `report [--month YYYY-MM] [--json]` | 月报：按时率/测量/更正作废/触达（只读） |
 | `inspect` | 账本概览（各表计数） |
 
 ## 日常跑（无人值守）
@@ -60,6 +63,22 @@ uv run python scripts/da_daily.py --db <ledger.sqlite> \
 - 幂等键 `(task_id, level, channel)`；同键重试上限 3 次；失败如实留痕。
 - 级别：1 前3天 / 2 当天 / 3 逾期+1 / 4 逾期+3（升班长）/ 5 逾期+7（升班长）/
   6 月底；（0 保留给联调/手工）。
+
+## 群消息接入口（P3）
+
+- 拉取「APM测试」群最近消息（每 5 分钟，Hermes cron `da_group_watch.py`；异常才提醒）。
+- 解析：兼容原样换行与**钉钉 Markdown 规整**（`#` 行会被转成 `**加粗**`、换行折叠为空格）两种形态；判定标记＝文本含「蓄电池电压测量数据」。
+- 摄入：幂等键 = 群消息 messageId；结构性问题（如缺必填字段）转 `rejected` 摘要 → 群内回执提示补齐；游标存 `config_params.group_intake`。
+- 契约（给录入应用侧）见 `docs/entry-app-contract.md`。
+
+## 月报（P3）
+
+```bash
+uv run python -m da_core.cli report --db <ledger.sqlite> --month 2026-09 [--json]
+```
+- 任务按 `due_at` 归月（按时/迟到/逾期/在办 + 按时率）；测量按 `occurred_at` 归月；
+- 更正（record_versions.op=correct）/ 作废（voided_at）/ 催办触达（task_events.sent_at）/ 延期计数；
+- 全程只读，不产生任何写操作。
 
 ## 配置（以账本 config_* 表为运行期权威）
 

@@ -482,3 +482,278 @@ def test_reconcile_table_vs_ledger(tmp_path):
                                         field_ids["账本Rev"]: 1,
                                         field_ids["账本状态"]: "已定稿"}}])
     assert any(diff["kind"] == "orphan-rows" for diff in orphan["diffs"])
+
+
+OLD_FORMAT_MESSAGE = """# 蓄电池电压测量数据
+# 提交时间: 2026-09-21 11:30
+
+[组别] 3号组(12只)
+[温度] 23
+[数量] 2/12　[合格区间] 13.20~13.80V
+[异常] 无
+[数据] 1:13.36,2:13.38"""
+
+EXT_FORMAT_MESSAGE = """# 蓄电池电压测量数据
+# 提交时间: 2026-09-21 11:30
+
+[组别] 3号组(12只)
+[温度] 23
+[直流系统] DC-003
+[浮充电压] 13.50
+[测试性质] 定期
+[数据] 1:13.36,2:13.95"""
+
+
+def test_group_message_parse():
+    from da_core import group_intake
+
+    parsed = group_intake.parse_group_message(OLD_FORMAT_MESSAGE)
+    assert parsed["submitted_at"] == "2026-09-21T11:30:00+08:00"
+    group = parsed["groups"][0]
+    assert group["group"] == "3号组(12只)"
+    assert group["env_temp"] == 23.0
+    assert group["items"] == [{"no": 1, "volt": 13.36}, {"no": 2, "volt": 13.38}]
+    assert "dc_system_id" not in group
+
+    extended = group_intake.parse_group_message(EXT_FORMAT_MESSAGE)["groups"][0]
+    assert extended["dc_system_id"] == "DC-003"
+    assert extended["float_voltage"] == 13.5
+    assert extended["test_kind"] == "定期"
+
+
+def test_correct_syncs_table_rows(tmp_path):
+    import json
+
+    from da_core.service import correct_submission
+
+    settings = make_settings(tmp_path)
+    summary = submit_submission(submission_12v(), settings=settings)
+    uid = summary["groups"][0]["record_uid"]
+    fid = settings.table["field_ids"]
+
+    calls = {"updates": []}
+
+    def runner(args):
+        if args[:3] == ["aitable", "record", "query"]:
+            rows = [{"recordId": f"rec-{n}",
+                     "cells": {fid["账本UID"]: uid, fid["电池序号"]: n}}
+                    for n in range(1, 13)]
+            return 0, json.dumps({"data": {"records": rows}}, ensure_ascii=False), ""
+        if args[:2] == ["aitable", "+record-update"]:
+            calls["updates"].append(list(args))
+            return 0, '{"ok": true}', ""
+        return 1, "", f"unexpected args: {args[:3]}"
+
+    corrected_payload = {
+        "dc_system_id": "DC-003",
+        "float_voltage": 13.5,
+        "test_kind": "定期",
+        "env_temp": 25,
+        "items": [{"no": number, "volt": 13.40} for number in range(1, 13)],
+    }
+    result = correct_submission(corrected_payload, record_uid=uid, actor="李四",
+                                settings=settings, dispatch=True, runner=runner)
+
+    assert result["status"] == "ok"
+    assert result["table_sync"]["updated"] == 12
+    assert result["table_sync"]["missing_cells"] == []
+
+    args = calls["updates"][0]
+    records = json.loads(args[args.index("--records") + 1])
+    assert len(records) == 12
+    assert records[0]["recordId"] == "rec-1"
+    sample = records[0]["cells"]
+    assert sample[fid["账本Rev"]] == 2
+    assert sample[fid["账本状态"]] == "已定稿"
+    assert sample[fid["电压值(V)"]] == 13.4
+
+
+def test_void_syncs_table_status(tmp_path):
+    import json
+
+    from da_core.service import void_record
+
+    settings = make_settings(tmp_path)
+    summary = submit_submission(submission_12v(), settings=settings)
+    uid = summary["groups"][0]["record_uid"]
+    fid = settings.table["field_ids"]
+
+    calls = {"updates": []}
+
+    def runner(args):
+        if args[:3] == ["aitable", "record", "query"]:
+            rows = [{"recordId": f"rec-{n}",
+                     "cells": {fid["账本UID"]: uid, fid["电池序号"]: n}}
+                    for n in range(1, 13)]
+            return 0, json.dumps({"data": {"records": rows}}, ensure_ascii=False), ""
+        if args[:2] == ["aitable", "+record-update"]:
+            calls["updates"].append(list(args))
+            return 0, '{"ok": true}', ""
+        return 1, "", f"unexpected args: {args[:3]}"
+
+    result = void_record(uid, reason="录入错误", actor="李四", settings=settings,
+                         dispatch=True, runner=runner)
+    assert result["status"] == "ok"
+    assert result["table_sync"]["updated"] == 12
+
+    args = calls["updates"][0]
+    records = json.loads(args[args.index("--records") + 1])
+    assert all(record["cells"] == {fid["账本状态"]: "已作废"} for record in records)
+
+
+def test_correct_table_sync_failure_does_not_block_ledger(tmp_path):
+    from da_core.service import correct_submission
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    summary = submit_submission(submission_12v(), settings=settings, ledger=ledger)
+    uid = summary["groups"][0]["record_uid"]
+
+    def runner(args):
+        return 1, "", "dws down"
+
+    corrected_payload = {
+        "dc_system_id": "DC-003",
+        "float_voltage": 13.5,
+        "test_kind": "定期",
+        "env_temp": 25,
+        "items": [{"no": number, "volt": 13.40} for number in range(1, 13)],
+    }
+    result = correct_submission(corrected_payload, record_uid=uid, actor="李四",
+                                settings=settings, ledger=ledger,
+                                dispatch=True, runner=runner)
+    assert result["status"] == "ok"  # 账本事实不受同步失败影响
+    assert result["table_sync"]["ok"] is False
+    assert ledger.get_record(uid)["rev"] == 2
+
+
+def test_group_receipt_text_branches():
+    from da_core.group_intake import _receipt_text
+
+    dup = _receipt_text({"ok": False, "groups": [
+        {"group": "3号组(12只)", "status": "rejected",
+         "validation": {"errors": [{"code": "E_DUP_KEY", "message": "x"}]}}]})
+    assert "无需重发" in dup and "请补" not in dup
+
+    missing = _receipt_text({"ok": False, "groups": [
+        {"group": "3号组(12只)", "status": "rejected",
+         "validation": {"errors": [{"code": "E_REQUIRED", "message": "y"}]}}]})
+    assert "请补" in missing and "缺必填字段" in missing
+
+    assert _receipt_text({"ok": True, "replayed": False, "groups": [
+        {"group": "3号组(12只)", "status": "ok", "_payload": {"items": [1, 2]},
+         "rules": [{"verdict": "violation"}]}]}).startswith("✅ 已入库")
+
+
+def test_monthly_report_counts(tmp_path):
+    from da_core.reporting import monthly_report
+    from da_core.scheduler import sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-08-01", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-08-02T10:00:00+08:00")
+
+    late = submission_12v(client_submission_id="rpt-late",
+                          submitted_at="2026-08-20T10:00:00+08:00")
+    assert submit_submission(late, settings=settings, ledger=ledger)["ok"] is True
+    sync_tasks(ledger, settings, now="2026-08-25T10:00:00+08:00")
+
+    report = monthly_report(ledger, settings, month="2026-08",
+                            now="2026-09-01T09:00:00+08:00")
+    assert report["month"] == "2026-08"
+    totals = report["totals"]
+    assert totals["due_total"] == 4
+    assert totals["done_late"] == 1
+    assert totals["overdue"] == 3
+    assert totals["records"] == 1
+
+    group = next(item for item in report["groups"] if "3号组" in item["group"])
+    assert group["done_late"] == 1
+    assert "| 3号组(12只) | 1 | 0 | 1 | 0 | 0% |" in report["text"]
+    assert "——AI助手" in report["text"]
+
+
+MANGLED_MESSAGE = (
+    "**蓄电池电压测量数据**  \n**提交时间: 2026-09-21 11:47**  \n"
+    "[组别] 3号组(12只) [温度] 23 [数量] 2/12\u3000[合格区间] 13.20~13.80V "
+    "[异常] 无 【联调测试】 [数据] 1:13.36,2:13.38"
+)
+
+
+def test_group_message_parse_mangled_by_dingtalk():
+    """真实回归：钉钉把 '# ' 行转 **加粗**、换行折叠成空格后的存储形态。"""
+    from da_core import group_intake
+
+    parsed = group_intake.parse_group_message(MANGLED_MESSAGE)
+    assert parsed["submitted_at"] == "2026-09-21T11:47:00+08:00"
+    group = parsed["groups"][0]
+    assert group["group"] == "3号组(12只)"
+    assert group["env_temp"] == 23.0
+    assert group["items"] == [{"no": 1, "volt": 13.36}, {"no": 2, "volt": 13.38}]
+
+
+def test_group_ingest_rejects_missing_fields_then_accepts(tmp_path):
+    from da_core import group_intake
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+
+    rejected = group_intake.ingest_group_message(
+        OLD_FORMAT_MESSAGE, message_id="mid-1", settings=settings, ledger=ledger,
+        dispatch=False)
+    assert rejected["ok"] is False
+    assert rejected["groups"][0]["status"] == "rejected"
+    codes = {error["code"] for error in rejected["groups"][0]["validation"]["errors"]}
+    assert "E_REQUIRED" in codes
+    assert ledger.counts()["records"] == 0
+
+    accepted = group_intake.ingest_group_message(
+        EXT_FORMAT_MESSAGE, message_id="mid-2", settings=settings, ledger=ledger,
+        dispatch=False)
+    assert accepted["ok"] is True
+    group = accepted["groups"][0]
+    assert group["lifecycle"] == "confirmed"
+    assert group["record_uid"] == "ST001-battery_voltage_test-20260921-1130-1"
+
+
+def test_poll_group_processes_new_messages_and_replies(tmp_path):
+    import json as json_mod
+
+    from da_core import group_intake
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+
+    sent = []
+
+    def runner(args):
+        if args[:2] == ["chat", "+chat-messages"]:
+            payload = {"count": 2, "messages": [
+                {"messageId": "m-old", "createTime": "2026-09-21 11:20:00",
+                 "text": "随便聊聊"},
+                {"messageId": "m-new", "createTime": "2026-09-21 11:31:00",
+                 "text": EXT_FORMAT_MESSAGE},
+            ]}
+            return 0, json_mod.dumps(payload, ensure_ascii=False), ""
+        sent.append(list(args))
+        return 0, '{"ok": true}', ""
+
+    preview = group_intake.poll_group(ledger, settings, runner=runner, dry_run=True)
+    assert preview["processed"][0]["would_submit"] is True
+
+    result = group_intake.poll_group(ledger, settings, runner=runner, dispatch=False)
+    assert result["scanned"] == 2
+    assert len(result["processed"]) == 1
+    assert result["processed"][0]["ok"] is True
+    assert result["cursor"]["last_time"] == "2026-09-21 11:31:00"
+    replies = [call for call in sent if call[:2] == ["chat", "+send-to-group"]]
+    assert len(replies) == 1
+    assert "已入库" in replies[0][5]
+
+    # 幂等：游标之后重拉 → 不再处理
+    result2 = group_intake.poll_group(ledger, settings, runner=runner, dispatch=False)
+    assert result2["processed"] == []
