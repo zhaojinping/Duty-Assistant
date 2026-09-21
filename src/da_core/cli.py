@@ -72,6 +72,18 @@ def main(argv: list[str] | None = None) -> int:
     scan_cmd.add_argument("--sync", action="store_true", help="同步 tasks 台账（写）")
     scan_cmd.add_argument("--now", default=None, help="模拟时刻（RFC3339，联调用）")
 
+    notify_cmd = commands.add_parser("notify", help="按任务当前状态触达（联调/运维入口）")
+    notify_cmd.add_argument("--task-id", default=None, help="指定任务；缺省=全部在办任务")
+    _add_station_args(notify_cmd)
+    notify_cmd.add_argument("--level", type=int, default=0, help="触达级别（幂等键组成）")
+    notify_cmd.add_argument("--dry-run", action="store_true", help="只组装不发送")
+
+    contacts_cmd = commands.add_parser("contacts", help="触达目标（联系人）配置")
+    contacts_cmd.add_argument("--db", required=True)
+    contacts_cmd.add_argument("--station-id", required=True)
+    contacts_cmd.add_argument("--set", default=None, metavar="ROLE=TARGET",
+                              help="设置角色目标：reminder_group / reminder_assignee / reminder_escalate")
+
     inspect = commands.add_parser("inspect", help="账本概览")
     inspect.add_argument("--db", required=True)
 
@@ -110,6 +122,42 @@ def main(argv: list[str] | None = None) -> int:
         else:
             result = scan_cycles(ledger, settings, now=args.now)
         print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "notify":
+        from da_core import outbox
+        from da_core.scheduler import scan as scan_cycles
+
+        settings = _settings_from_args(args)
+        ledger = Ledger(settings.db_path)
+        ledger.seed_config(settings)
+        contacts = ledger.get_contacts(settings.station["station_id"])
+        report = scan_cycles(ledger, settings)
+        items = {item["group"]: item for item in report["groups"]}
+        tasks = ledger.list_tasks(settings.station["station_id"], states=("open", "overdue"))
+        if args.task_id:
+            tasks = [task for task in tasks if task["task_id"] == args.task_id]
+        results = []
+        for task in tasks:
+            group_label = task["task_id"].split("|")[1]
+            item = items.get(group_label) or {"group": group_label, "overdue_days": 0}
+            results.append({
+                "task_id": task["task_id"],
+                "channels": outbox.deliver_cycle(ledger, task, item, contacts=contacts,
+                                                 level=args.level, dry_run=args.dry_run),
+            })
+        print(json.dumps({"contacts": sorted(contacts), "sent": results},
+                         ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "contacts":
+        ledger = Ledger(args.db)
+        if args.set:
+            role, _, target = args.set.partition("=")
+            if not target.strip():
+                raise SystemExit("格式：--set role=target（如 --set reminder_group=APM测试）")
+            ledger.set_contact(args.station_id, role.strip(), target.strip(), updated_by="cli")
+        print(json.dumps(ledger.get_contacts(args.station_id), ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "inspect":

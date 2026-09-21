@@ -279,3 +279,76 @@ def test_cycle_scan_and_task_sync(tmp_path):
     assert [u["state"] for u in actions["updated"]] == ["overdue"]
     current = ledger.current_task("ST001", "battery_voltage_test", "3号组(12只)")
     assert current["state"] == "overdue" and current["overdue_since"] == "2026-10-16"
+
+
+def test_outbox_deliver_receipt_and_idempotency(tmp_path):
+    from da_core import outbox
+
+    ledger = Ledger(tmp_path / "outbox.sqlite")
+    task_id = "ST001|3号组(12只)|2026-10-21"
+    ledger.insert_task(task_id=task_id, station_id="ST001", record_type="battery_voltage_test",
+                       period_key="2026-10-21", due_at="2026-10-21", state="open",
+                       overdue_since=None, opened_at="2026-09-21T10:00:00+08:00")
+
+    calls = []
+
+    def ok_runner(args):
+        calls.append(list(args))
+        return 0, '{"success": true}', ""
+
+    spec = {"task_id": task_id, "level": 1, "channel": "group",
+            "target": "APM测试", "text": "hello"}
+    first = outbox.deliver(ledger, spec, runner=ok_runner)
+    assert first["sent"] is True and len(calls) == 1
+    assert calls[0][:3] == ["chat", "+send-to-group", "--group"]
+
+    replay = outbox.deliver(ledger, spec, runner=ok_runner)
+    assert replay["sent"] is False and replay["reason"] == "already-sent"
+    assert len(calls) == 1
+
+    def bad_runner(args):
+        calls.append(list(args))
+        return 1, "", "boom"
+
+    spec2 = {"task_id": task_id, "level": 2, "channel": "group",
+             "target": "APM测试", "text": "hello2"}
+    failed = outbox.deliver(ledger, spec2, runner=bad_runner)
+    assert failed["sent"] is False
+    events = ledger.list_task_events(task_id)
+    assert events[-1]["result"] == "failed" and events[-1]["retry_count"] == 0
+
+    retried = outbox.deliver(ledger, spec2, runner=ok_runner)
+    assert retried["sent"] is True and retried["retry_count"] == 1
+
+
+def test_outbox_render_and_dual_channel(tmp_path):
+    from da_core import outbox
+
+    message = outbox.render_cycle_message(
+        group="3号组(12只)", due="2026-10-21",
+        last_done="2026-09-21T11:03:00+08:00", days_to_due=2)
+    assert "3号组(12只)" in message["text"] and "10-21" in message["text"]
+    assert message["text"].endswith("——AI助手")
+
+    ledger = Ledger(tmp_path / "dual.sqlite")
+    task = {"task_id": "ST001|x|2026-10-21", "due_at": "2026-10-21"}
+    item = {"group": "x", "last_done_at": None, "days_to_due": 2, "overdue_days": 0}
+    sent = []
+
+    def runner(args):
+        sent.append(list(args))
+        return 0, "{}", ""
+
+    results = outbox.deliver_cycle(ledger, task, item,
+                                   contacts={outbox.ROLE_GROUP: "APM测试",
+                                             outbox.ROLE_ASSIGNEE: "user123"},
+                                   level=0, runner=runner)
+    assert [r["channel"] for r in results] == ["group", "todo"]
+    assert all(r["sent"] for r in results)
+    assert len(sent) == 2 and sent[1][:2] == ["todo", "+create"]
+
+    # 未配置目标 → 如实记录 no-target，不发送
+    ledger2 = Ledger(tmp_path / "dual2.sqlite")
+    results2 = outbox.deliver_cycle(ledger2, task, item, contacts={}, level=0,
+                                    runner=runner)
+    assert all(r["sent"] is False and r["reason"] == "no-target" for r in results2)
