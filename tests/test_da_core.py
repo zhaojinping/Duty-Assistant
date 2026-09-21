@@ -627,6 +627,36 @@ def test_correct_table_sync_failure_does_not_block_ledger(tmp_path):
     assert ledger.get_record(uid)["rev"] == 2
 
 
+def test_monthly_report_counts(tmp_path):
+    from da_core.reporting import monthly_report
+    from da_core.scheduler import sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-08-01", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-08-02T10:00:00+08:00")
+
+    late = submission_12v(client_submission_id="rpt-late",
+                          submitted_at="2026-08-20T10:00:00+08:00")
+    assert submit_submission(late, settings=settings, ledger=ledger)["ok"] is True
+    sync_tasks(ledger, settings, now="2026-08-25T10:00:00+08:00")
+
+    report = monthly_report(ledger, settings, month="2026-08",
+                            now="2026-09-01T09:00:00+08:00")
+    assert report["month"] == "2026-08"
+    totals = report["totals"]
+    assert totals["due_total"] == 4
+    assert totals["done_late"] == 1
+    assert totals["overdue"] == 3
+    assert totals["records"] == 1
+
+    group = next(item for item in report["groups"] if "3号组" in item["group"])
+    assert group["done_late"] == 1
+    assert "| 3号组(12只) | 1 | 0 | 1 | 0 | 0% |" in report["text"]
+    assert "——AI助手" in report["text"]
+
+
 MANGLED_MESSAGE = (
     "**蓄电池电压测量数据**  \n**提交时间: 2026-09-21 11:47**  \n"
     "[组别] 3号组(12只) [温度] 23 [数量] 2/12\u3000[合格区间] 13.20~13.80V "

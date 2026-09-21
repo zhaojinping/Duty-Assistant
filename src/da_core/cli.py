@@ -111,6 +111,11 @@ def main(argv: list[str] | None = None) -> int:
                           help="解析演练（不落账/不回执/不写表）")
     pull_cmd.add_argument("--no-reply", action="store_true", help="不回执到群")
 
+    report_cmd = commands.add_parser("report", help="月报（按时率/测量/更正作废/触达，只读）")
+    _add_station_args(report_cmd)
+    report_cmd.add_argument("--month", default=None, help="YYYY-MM；缺省=当前月")
+    report_cmd.add_argument("--json", action="store_true", help="JSON 输出（缺省 Markdown）")
+
     inspect = commands.add_parser("inspect", help="账本概览")
     inspect.add_argument("--db", required=True)
 
@@ -237,6 +242,19 @@ def main(argv: list[str] | None = None) -> int:
         result = poll_group(ledger, settings, reply=not args.no_reply,
                             dry_run=args.dry_run, limit=args.limit)
         print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "report":
+        from da_core.reporting import monthly_report
+
+        settings = _settings_from_args(args)
+        ledger = Ledger(settings.db_path)
+        report = monthly_report(ledger, settings, month=args.month)
+        if args.json:
+            print(json.dumps({key: value for key, value in report.items()
+                              if key != "text"}, ensure_ascii=False, indent=2))
+        else:
+            print(report["text"])
         return 0
 
     if args.command == "inspect":
