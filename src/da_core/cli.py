@@ -264,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
             ledger, settings,
             base_url=args.base_url or os.environ.get("DA_PULL_URL"),
             token=args.token or os.environ.get("DA_PULL_TOKEN"),
-            limit=args.limit, dry_run=args.dry_run)
+            limit=args.limit, dry_run=args.dry_run, notify_group=True)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 

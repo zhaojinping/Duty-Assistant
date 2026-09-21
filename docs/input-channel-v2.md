@@ -72,4 +72,12 @@ Authorization: Bearer <对接 token>
 2. §2 双方各自准备（应用侧：接口+存储+token；核心侧：拉取适配器）；
 3. 联调通过后切主路；群通道持续可用（已验收）。
 
+## 附：§2 对接实况（2026-09-21 对方交付）
+
+- 鉴权头：`X-Submissions-Token`（**勿用 Authorization**——对方云端入口的反向代理会注入/覆写该头）
+- 响应：`{items:[{seq, received_at, payload}], next_cursor, has_more}`；`payload` = 提交报文原样
+- 游标：`since` 初始 `0`，此后用 `next_cursor`；保留期 30 天；同 `client_submission_id` 不重复存储
+- 过渡期双轨：提交同时入待拉取存储 + 自动转投群；联调通过后对方切「纯兜底」
+- 核心侧实现：`da_core.pull_intake`（CLI `pull-remote`）；入库回执策略待定（联调结论）
+
 ——AI助手
