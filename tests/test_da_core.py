@@ -437,3 +437,48 @@ def test_deferral_shifts_effective_due(tmp_path):
     three2 = next(g for g in report2["groups"] if g["group"] == "3号组(12只)")
     assert three2["overdue_days"] == 5
     assert three2["status"] == "overdue"
+
+
+def test_reconcile_table_vs_ledger(tmp_path):
+    from da_core import reconcile as reconcile_mod
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    summary = submit_submission(submission_12v(), settings=settings, ledger=ledger)
+    uid = summary["groups"][0]["record_uid"]
+    field_ids = settings.table["field_ids"]
+
+    voltages = {number: round(13.30 + number * 0.01, 2) for number in range(1, 12)}
+    voltages[12] = 13.95
+
+    def build_rows(*, volt_override=None, drop_cell=None, uid_value=uid):
+        rows = []
+        for number, volt in voltages.items():
+            if drop_cell == number:
+                continue
+            value = volt_override if (volt_override is not None and number == 12) else volt
+            rows.append({"recordId": f"rec{number}", "cells": {
+                field_ids["账本UID"]: uid_value,
+                field_ids["账本Rev"]: 1,
+                field_ids["账本状态"]: "已定稿",
+                field_ids["电池序号"]: number,
+                field_ids["电压值(V)"]: value,
+            }})
+        return rows
+
+    ok = reconcile_mod.reconcile(ledger, settings, table_rows=build_rows())
+    assert ok["ok"] is True and ok["diffs"] == [] and ok["ledger_records"] == 1
+
+    drifted = reconcile_mod.reconcile(ledger, settings,
+                                      table_rows=build_rows(volt_override=9.9))
+    assert drifted["ok"] is False
+    assert any(diff["kind"] == "voltage" for diff in drifted["diffs"])
+
+    short = reconcile_mod.reconcile(ledger, settings, table_rows=build_rows(drop_cell=12))
+    assert any(diff["kind"] == "row-count" for diff in short["diffs"])
+
+    orphan = reconcile_mod.reconcile(ledger, settings, table_rows=[
+        {"recordId": "ghost", "cells": {field_ids["账本UID"]: "GHOST-UID",
+                                        field_ids["账本Rev"]: 1,
+                                        field_ids["账本状态"]: "已定稿"}}])
+    assert any(diff["kind"] == "orphan-rows" for diff in orphan["diffs"])

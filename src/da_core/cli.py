@@ -96,6 +96,14 @@ def main(argv: list[str] | None = None) -> int:
     escalate_cmd.add_argument("--now", default=None, help="模拟时刻（RFC3339，联调用）")
     escalate_cmd.add_argument("--dry-run", action="store_true")
 
+    reconcile_cmd = commands.add_parser("reconcile", help="表↔账本对账（只读）")
+    _add_station_args(reconcile_cmd)
+
+    cycle_cmd = commands.add_parser("cycle", help="周期配置（cycle_days / baseline）")
+    cycle_cmd.add_argument("--db", required=True)
+    cycle_cmd.add_argument("--set-baseline", default=None, help="起算日 YYYY-MM-DD")
+    cycle_cmd.add_argument("--set-cycle-days", type=int, default=None)
+
     inspect = commands.add_parser("inspect", help="账本概览")
     inspect.add_argument("--db", required=True)
 
@@ -190,6 +198,26 @@ def main(argv: list[str] | None = None) -> int:
         ledger.seed_config(settings)
         result = run_escalation(ledger, settings, now=args.now, dry_run=args.dry_run)
         print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "reconcile":
+        from da_core.reconcile import reconcile
+
+        settings = _settings_from_args(args)
+        ledger = Ledger(settings.db_path)
+        print(json.dumps(reconcile(ledger, settings), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "cycle":
+        ledger = Ledger(args.db)
+        current = ledger.get_cycle_config()
+        if args.set_baseline is not None or args.set_cycle_days is not None:
+            ledger.set_cycle_config(
+                cycle_days=args.set_cycle_days or int(current.get("cycle_days") or 30),
+                baseline=(args.set_baseline if args.set_baseline is not None
+                          else current.get("baseline")),
+                updated_by="cli")
+        print(json.dumps(ledger.get_cycle_config(), ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "inspect":
