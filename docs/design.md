@@ -15,6 +15,8 @@
 
 > **修订 C（2026-09-20，M2 收口同步）**：文法扩展终稿（PR #29）与 trend 口径拍板（#28 评论）并入：§7.3（`when` 值侧前缀微文法 + `kind="condition"` + `monotonic` 算子 + trend 口径）、§7.4 避雷器/跳闸行、§12 待定项收敛。受影响条款：§7.3 四行、§7.4 两行、§12 两条。
 
+> **修订 D（2026-09-21，对接现场表拍板）**：蓄电池与现场录入表（钉钉 AI 表格「电压测量记录」）对接口径并入：① §7.2 样例 `dedupe_key` 纳入 `dc_system_id`（同日同站多组测试不再互撞业务判重）；② 电压带上限 2.25 → **2.30**（按现场口径；原值为主设样例）。受影响条款：§7.2 两行。
+
 ## 1. 背景与目标
 
 围绕 **10 类**运行值班记录（断路器跳闸、避雷器动作、接地线装拆、两票登记、设备测温、绝缘测试、蓄电池电压测试、主变铁芯夹件电流测试、保护投退、防小动物检查），构建一个**全新、独立**的工具包。
@@ -182,7 +184,7 @@ record_type = "battery_voltage_test"
 title = "蓄电池电压测试记录簿"
 schema_version = "1.5"
 layout = "item_list"                # flat(横表台账) | item_list(逐条测量)
-dedupe_key = ["station", "occurred_day", "test_kind"]
+dedupe_key = ["station", "occurred_day", "test_kind", "dc_system_id"]
 link_types = ["retest_of"]
 extra = "reject"                    # 未知字段处理：reject(默认) | allow
 signature_slots = ["测试人"]         # 多槽位=多人签认
@@ -240,7 +242,7 @@ id = "voltage_band"
 kind = "limit"
 tier = 1
 target = "items.voltage"
-expr = "band:2.00,2.25"
+expr = "band:2.00,2.30"
 level = "warn"
 
 [[rules]]

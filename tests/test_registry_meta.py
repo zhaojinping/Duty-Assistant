@@ -86,7 +86,7 @@ def test_bundled_battery_declaration_shape(declaration):
     assert declaration.record_type == "battery_voltage_test"
     assert declaration.layout == "item_list"
     assert declaration.schema_version == "1.5"
-    assert declaration.dedupe_key == ("station", "occurred_day", "test_kind")
+    assert declaration.dedupe_key == ("station", "occurred_day", "test_kind", "dc_system_id")
     assert declaration.link_types == ("retest_of",)
     assert declaration.extra == "reject"
     assert declaration.signature_slots == ("测试人",)
