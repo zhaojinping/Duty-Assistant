@@ -627,6 +627,29 @@ def test_correct_table_sync_failure_does_not_block_ledger(tmp_path):
     assert ledger.get_record(uid)["rev"] == 2
 
 
+def test_baseline_change_rebases_old_task(tmp_path):
+    """周期配置变更滚期：旧任务应结案为 rebased（不冒充 done），月报不计入。"""
+    from da_core.reporting import monthly_report
+    from da_core.scheduler import sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-10-21", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-09-21T10:00:00+08:00")
+
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-10-30", updated_by="测试")
+    actions = sync_tasks(ledger, settings, now="2026-09-21T10:00:00+08:00")
+    assert len(actions["closed"]) == 4
+    assert {item["state"] for item in actions["closed"]} == {"rebased"}
+    assert len(actions["created"]) == 4
+    assert {item["due"] for item in actions["created"]} == {"2026-10-30"}
+
+    report = monthly_report(ledger, settings, month="2026-10")
+    assert report["totals"]["due_total"] == 4  # rebased 不计入
+    assert report["totals"]["done"] == 0
+
+
 def test_group_receipt_text_branches():
     from da_core.group_intake import _receipt_text
 

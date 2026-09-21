@@ -55,6 +55,8 @@ def monthly_report(ledger, settings: Settings, month: str | None = None,
             "overdue": 0, "open": 0, "records": 0, "voided": 0})
 
     for task_id, state in task_rows:
+        if state == "rebased":  # 配置滚期产物：不计入达成统计
+            continue
         bucket = _bucket(_group_of(task_id))
         bucket["due_total"] += 1
         if state in ("done", "done_late", "overdue", "open"):
