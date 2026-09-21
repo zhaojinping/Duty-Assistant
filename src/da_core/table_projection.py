@@ -143,21 +143,24 @@ def _extract_record_ids(stdout: str) -> list[str]:
     except (TypeError, ValueError):
         return []
     payload = data.get("data") if isinstance(data, dict) else None
+    if not isinstance(payload, dict):
+        return []
+    new_ids = payload.get("newRecordIds")
+    if isinstance(new_ids, list):
+        return [str(value) for value in new_ids if value]
+    # 兼容记录列表形态（records/results/items）
     candidates = []
-    if isinstance(payload, dict):
-        for key in ("records", "results", "items"):
-            if isinstance(payload.get(key), list):
-                candidates = payload[key]
-                break
-    elif isinstance(payload, list):
-        candidates = payload
+    for key in ("records", "results", "items"):
+        if isinstance(payload.get(key), list):
+            candidates = payload[key]
+            break
     ids = []
     for item in candidates:
         if not isinstance(item, dict):
             continue
         value = item.get("recordId") or item.get("record_id")
         if value:
-            ids.append(value)
+            ids.append(str(value))
     return ids
 
 

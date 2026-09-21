@@ -171,3 +171,12 @@ def test_intake_errors_are_readable(tmp_path):
     bad = {"client_submission_id": "x", "operator": "张三", "groups": [{"group": "9号组"}]}
     with pytest.raises(IntakeError, match="缺字段"):
         submit_submission(bad, settings=settings)
+
+
+def test_extract_record_ids_from_create_response():
+    from da_core.table_projection import _extract_record_ids
+
+    stdout = '{"data": {"newRecordIds": ["rec1", "rec2"]}, "status": "success"}'
+    assert _extract_record_ids(stdout) == ["rec1", "rec2"]
+    assert _extract_record_ids("not json") == []
+    assert _extract_record_ids('{"data": {"records": [{"recordId": "r3"}]}}') == ["r3"]
