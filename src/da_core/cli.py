@@ -104,6 +104,13 @@ def main(argv: list[str] | None = None) -> int:
     cycle_cmd.add_argument("--set-baseline", default=None, help="起算日 YYYY-MM-DD")
     cycle_cmd.add_argument("--set-cycle-days", type=int, default=None)
 
+    pull_cmd = commands.add_parser("pull-group", help="群消息接入口：拉取并处理降级提交")
+    _add_station_args(pull_cmd)
+    pull_cmd.add_argument("--limit", type=int, default=50)
+    pull_cmd.add_argument("--dry-run", action="store_true",
+                          help="解析演练（不落账/不回执/不写表）")
+    pull_cmd.add_argument("--no-reply", action="store_true", help="不回执到群")
+
     inspect = commands.add_parser("inspect", help="账本概览")
     inspect.add_argument("--db", required=True)
 
@@ -218,6 +225,17 @@ def main(argv: list[str] | None = None) -> int:
                           else current.get("baseline")),
                 updated_by="cli")
         print(json.dumps(ledger.get_cycle_config(), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "pull-group":
+        from da_core.group_intake import poll_group
+
+        settings = _settings_from_args(args)
+        ledger = Ledger(settings.db_path)
+        ledger.seed_config(settings)
+        result = poll_group(ledger, settings, reply=not args.no_reply,
+                            dry_run=args.dry_run, limit=args.limit)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "inspect":

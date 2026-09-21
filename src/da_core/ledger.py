@@ -377,6 +377,22 @@ class Ledger:
                 (station_id,))
         }
 
+    # ── 通用配置项（游标等高频值不入审计，避免噪音） ────────────────
+
+    def get_param(self, key: str, default=None):
+        row = self.conn.execute(
+            "SELECT value_json FROM config_params WHERE key=?", (key,)).fetchone()
+        return json.loads(row["value_json"]) if row else default
+
+    def set_param(self, key: str, value, *, updated_by: str = "") -> None:
+        self.conn.execute(
+            "INSERT INTO config_params(key, value_json, updated_at) VALUES(?,?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, "
+            "updated_at=excluded.updated_at",
+            (key, _dump(value), iso_now()),
+        )
+        self.conn.commit()
+
     # ── 延期（班长批） ──────────────────────────────────────────────
 
     def insert_deferral(self, *, deferral_id: str, task_id: str, reason: str,

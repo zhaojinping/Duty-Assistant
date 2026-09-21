@@ -482,3 +482,124 @@ def test_reconcile_table_vs_ledger(tmp_path):
                                         field_ids["账本Rev"]: 1,
                                         field_ids["账本状态"]: "已定稿"}}])
     assert any(diff["kind"] == "orphan-rows" for diff in orphan["diffs"])
+
+
+OLD_FORMAT_MESSAGE = """# 蓄电池电压测量数据
+# 提交时间: 2026-09-21 11:30
+
+[组别] 3号组(12只)
+[温度] 23
+[数量] 2/12　[合格区间] 13.20~13.80V
+[异常] 无
+[数据] 1:13.36,2:13.38"""
+
+EXT_FORMAT_MESSAGE = """# 蓄电池电压测量数据
+# 提交时间: 2026-09-21 11:30
+
+[组别] 3号组(12只)
+[温度] 23
+[直流系统] DC-003
+[浮充电压] 13.50
+[测试性质] 定期
+[数据] 1:13.36,2:13.95"""
+
+
+def test_group_message_parse():
+    from da_core import group_intake
+
+    parsed = group_intake.parse_group_message(OLD_FORMAT_MESSAGE)
+    assert parsed["submitted_at"] == "2026-09-21T11:30:00+08:00"
+    group = parsed["groups"][0]
+    assert group["group"] == "3号组(12只)"
+    assert group["env_temp"] == 23.0
+    assert group["items"] == [{"no": 1, "volt": 13.36}, {"no": 2, "volt": 13.38}]
+    assert "dc_system_id" not in group
+
+    extended = group_intake.parse_group_message(EXT_FORMAT_MESSAGE)["groups"][0]
+    assert extended["dc_system_id"] == "DC-003"
+    assert extended["float_voltage"] == 13.5
+    assert extended["test_kind"] == "定期"
+
+
+MANGLED_MESSAGE = (
+    "**蓄电池电压测量数据**  \n**提交时间: 2026-09-21 11:47**  \n"
+    "[组别] 3号组(12只) [温度] 23 [数量] 2/12\u3000[合格区间] 13.20~13.80V "
+    "[异常] 无 【联调测试】 [数据] 1:13.36,2:13.38"
+)
+
+
+def test_group_message_parse_mangled_by_dingtalk():
+    """真实回归：钉钉把 '# ' 行转 **加粗**、换行折叠成空格后的存储形态。"""
+    from da_core import group_intake
+
+    parsed = group_intake.parse_group_message(MANGLED_MESSAGE)
+    assert parsed["submitted_at"] == "2026-09-21T11:47:00+08:00"
+    group = parsed["groups"][0]
+    assert group["group"] == "3号组(12只)"
+    assert group["env_temp"] == 23.0
+    assert group["items"] == [{"no": 1, "volt": 13.36}, {"no": 2, "volt": 13.38}]
+
+
+def test_group_ingest_rejects_missing_fields_then_accepts(tmp_path):
+    from da_core import group_intake
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+
+    rejected = group_intake.ingest_group_message(
+        OLD_FORMAT_MESSAGE, message_id="mid-1", settings=settings, ledger=ledger,
+        dispatch=False)
+    assert rejected["ok"] is False
+    assert rejected["groups"][0]["status"] == "rejected"
+    codes = {error["code"] for error in rejected["groups"][0]["validation"]["errors"]}
+    assert "E_REQUIRED" in codes
+    assert ledger.counts()["records"] == 0
+
+    accepted = group_intake.ingest_group_message(
+        EXT_FORMAT_MESSAGE, message_id="mid-2", settings=settings, ledger=ledger,
+        dispatch=False)
+    assert accepted["ok"] is True
+    group = accepted["groups"][0]
+    assert group["lifecycle"] == "confirmed"
+    assert group["record_uid"] == "ST001-battery_voltage_test-20260921-1130-1"
+
+
+def test_poll_group_processes_new_messages_and_replies(tmp_path):
+    import json as json_mod
+
+    from da_core import group_intake
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+
+    sent = []
+
+    def runner(args):
+        if args[:2] == ["chat", "+chat-messages"]:
+            payload = {"count": 2, "messages": [
+                {"messageId": "m-old", "createTime": "2026-09-21 11:20:00",
+                 "text": "随便聊聊"},
+                {"messageId": "m-new", "createTime": "2026-09-21 11:31:00",
+                 "text": EXT_FORMAT_MESSAGE},
+            ]}
+            return 0, json_mod.dumps(payload, ensure_ascii=False), ""
+        sent.append(list(args))
+        return 0, '{"ok": true}', ""
+
+    preview = group_intake.poll_group(ledger, settings, runner=runner, dry_run=True)
+    assert preview["processed"][0]["would_submit"] is True
+
+    result = group_intake.poll_group(ledger, settings, runner=runner, dispatch=False)
+    assert result["scanned"] == 2
+    assert len(result["processed"]) == 1
+    assert result["processed"][0]["ok"] is True
+    assert result["cursor"]["last_time"] == "2026-09-21 11:31:00"
+    replies = [call for call in sent if call[:2] == ["chat", "+send-to-group"]]
+    assert len(replies) == 1
+    assert "已入库" in replies[0][5]
+
+    # 幂等：游标之后重拉 → 不再处理
+    result2 = group_intake.poll_group(ledger, settings, runner=runner, dispatch=False)
+    assert result2["processed"] == []
