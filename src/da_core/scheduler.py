@@ -64,16 +64,32 @@ def scan(ledger, settings, *, now: str | None = None) -> dict:
             due = _dt.date.fromisoformat(baseline)
         else:
             due = None
-        overdue_days = (today - due).days if due and today > due else 0
+        deferred_until = None
+        due_effective = due
+        if due is not None:
+            deferred_until = ledger.latest_deferral(station_id, label, due.isoformat())
+            if deferred_until and deferred_until > due.isoformat():
+                due_effective = _dt.date.fromisoformat(deferred_until)
+        overdue_days = ((today - due_effective).days
+                        if due_effective and today > due_effective else 0)
+        if due is None:
+            status = "awaiting_baseline"
+        elif overdue_days > 0:
+            status = "overdue"
+        elif deferred_until and deferred_until > due.isoformat():
+            status = "deferred"
+        else:
+            status = "ok"
         groups.append({
             "group": label,
             "last_done_at": last["occurred_at"] if last else None,
             "last_done_uid": last["record_uid"] if last else None,
             "next_due": due.isoformat() if due else None,
-            "days_to_due": (due - today).days if due else None,
+            "due_effective": due_effective.isoformat() if due_effective else None,
+            "deferred_until": deferred_until,
+            "days_to_due": (due_effective - today).days if due_effective else None,
             "overdue_days": overdue_days,
-            "status": ("awaiting_baseline" if due is None
-                       else ("overdue" if overdue_days > 0 else "ok")),
+            "status": status,
         })
     return {"station_id": station_id, "today": today.isoformat(),
             "cycle_days": cycle_days, "baseline": baseline, "groups": groups}

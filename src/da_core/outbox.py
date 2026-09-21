@@ -16,7 +16,7 @@ from da_core import dws_cli
 # config_contacts 角色约定（催办触达目标）
 ROLE_GROUP = "reminder_group"        # 群名称或 openConversationId
 ROLE_ASSIGNEE = "reminder_assignee"  # 责任人 userId（待办执行人）
-ROLE_ESCALATE = "reminder_escalate"  # 升级对象 userId（班长/管理）
+ROLE_ESCALATE = "reminder_escalate"  # 升级对象姓名（DM 用；班长/管理）
 
 
 def render_cycle_message(*, group: str, due: str, last_done: str | None = None,
@@ -62,22 +62,39 @@ def send_todo(assignee: str, *, title: str, due: str | None = None,
     return {"ok": rc == 0, "rc": rc, "detail": (out or err).strip()[:300]}
 
 
+def send_dm(name: str, text: str, *, runner=None, confirm: bool = True) -> dict:
+    """单人 DM 触达（升级对象用；name 为姓名，唯一解析）。"""
+    args = ["chat", "+dm", "--to", name, "--content", text, "--format", "json"]
+    if confirm:
+        args.append("--yes")
+    rc, out, err = (runner or dws_cli.run_dws)(args)
+    return {"ok": rc == 0, "rc": rc, "detail": (out or err).strip()[:300]}
+
+
+_RETRY_CAP = 3  # 同一 (task, level, channel) 的投递重试上限（含失败留痕）
+
+
 def deliver(ledger, spec: dict, *, runner=None, dry_run: bool = False) -> dict:
     """单次投递 + 回执落账（幂等拦截：同 (task, level, channel) 已成功后不重发）。
 
-    spec: ``{task_id, level, channel: 'group'|'todo', target, text, title?, due?}``
+    spec: ``{task_id, level, channel: 'group'|'todo'|'dm', target, text, title?, due?}``
     """
     channel = spec["channel"]
-    if channel not in ("group", "todo"):
+    if channel not in ("group", "todo", "dm"):
         raise ValueError(f"未知渠道：{channel!r}")
     prior = ledger.find_task_event(spec["task_id"], spec["level"], channel)
     if prior and prior["result"] == "sent":
         return {"sent": False, "reason": "already-sent", "event_id": prior["event_id"]}
+    if prior and prior["retry_count"] >= _RETRY_CAP:
+        return {"sent": False, "reason": "retry-exhausted",
+                "retry_count": prior["retry_count"]}
     if dry_run:
         return {"sent": False, "reason": "dry-run", "would": dict(spec)}
 
     if channel == "group":
         result = send_group(spec["target"], spec["text"], runner=runner)
+    elif channel == "dm":
+        result = send_dm(spec["target"], spec["text"], runner=runner)
     else:
         result = send_todo(spec["target"], title=spec.get("title") or "蓄电池测量提醒",
                            due=spec.get("due"), runner=runner)

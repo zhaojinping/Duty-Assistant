@@ -352,3 +352,88 @@ def test_outbox_render_and_dual_channel(tmp_path):
     results2 = outbox.deliver_cycle(ledger2, task, item, contacts={}, level=0,
                                     runner=runner)
     assert all(r["sent"] is False and r["reason"] == "no-target" for r in results2)
+
+
+def test_escalation_ladder_and_dedup(tmp_path):
+    from da_core import escalation
+    from da_core.scheduler import sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-08-01", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-07-25T10:00:00+08:00")
+    ledger.set_contact("ST001", "reminder_group", "测试群")
+    ledger.set_contact("ST001", "reminder_assignee", "user1")
+    ledger.set_contact("ST001", "reminder_escalate", "班长")
+
+    calls = []
+
+    def runner(args):
+        calls.append(list(args))
+        return 0, "{}", ""
+
+    # 前3天（due 08-01，now 07-29）→ level 1：4 组 × (群+待办)
+    out = escalation.run_escalation(ledger, settings,
+                                    now="2026-07-29T10:00:00+08:00", runner=runner)
+    assert {o["level"] for o in out} == {1}
+    assert len(out) == 4
+    assert len(calls) == 8
+
+    # 幂等：同级别重跑零发送
+    calls.clear()
+    escalation.run_escalation(ledger, settings,
+                              now="2026-07-29T10:00:00+08:00", runner=runner)
+    assert calls == []
+
+    # 逾期 +3（now 08-04）→ level 4：群+待办+升级 DM
+    calls.clear()
+    out = escalation.run_escalation(ledger, settings,
+                                    now="2026-08-04T10:00:00+08:00", runner=runner)
+    assert {o["level"] for o in out} == {4}
+    dm_calls = [call for call in calls if call[:2] == ["chat", "+dm"]]
+    assert len(dm_calls) == 4
+    assert len(calls) == 12
+
+
+def test_compute_stage_month_end():
+    import datetime as dt
+
+    from da_core import escalation
+
+    item = {"next_due": "2026-08-01", "overdue_days": 30, "days_to_due": -30}
+    assert escalation.compute_stage(item, dt.date(2026, 8, 31)) == 6
+    assert escalation.compute_stage(item, dt.date(2026, 8, 25)) == 5
+    item3 = {"next_due": "2026-08-01", "overdue_days": 2, "days_to_due": -2}
+    assert escalation.compute_stage(item3, dt.date(2026, 8, 3)) == 3
+    item4 = {"next_due": "2026-08-01", "overdue_days": 0, "days_to_due": 0}
+    assert escalation.compute_stage(item4, dt.date(2026, 8, 1)) == 2
+    item5 = {"next_due": None, "overdue_days": 0, "days_to_due": None}
+    assert escalation.compute_stage(item5, dt.date(2026, 8, 1)) is None
+
+
+def test_deferral_shifts_effective_due(tmp_path):
+    from da_core.scheduler import scan, sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-08-01", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-07-25T10:00:00+08:00")
+
+    task_id = "ST001|3号组(12只)|2026-08-01"
+    ledger.insert_deferral(deferral_id="d1", task_id=task_id, reason="现场检修不可用",
+                           approved_by="班长", until_at="2026-08-10")
+
+    report = scan(ledger, settings, now="2026-08-05T10:00:00+08:00")
+    three = next(g for g in report["groups"] if g["group"] == "3号组(12只)")
+    assert three["status"] == "deferred"
+    assert three["deferred_until"] == "2026-08-10"
+    assert three["overdue_days"] == 0
+    assert three["next_due"] == "2026-08-01"  # 锚点真值不变
+
+    # 延期过期 → 恢复逾期（从延期日算起）
+    report2 = scan(ledger, settings, now="2026-08-15T10:00:00+08:00")
+    three2 = next(g for g in report2["groups"] if g["group"] == "3号组(12只)")
+    assert three2["overdue_days"] == 5
+    assert three2["status"] == "overdue"

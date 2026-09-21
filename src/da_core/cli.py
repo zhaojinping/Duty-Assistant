@@ -84,6 +84,18 @@ def main(argv: list[str] | None = None) -> int:
     contacts_cmd.add_argument("--set", default=None, metavar="ROLE=TARGET",
                               help="设置角色目标：reminder_group / reminder_assignee / reminder_escalate")
 
+    defer_cmd = commands.add_parser("defer", help="登记延期（班长批）：截止日顺延")
+    defer_cmd.add_argument("--task-id", required=True)
+    defer_cmd.add_argument("--until", required=True, help="延期至（YYYY-MM-DD）")
+    defer_cmd.add_argument("--reason", required=True)
+    defer_cmd.add_argument("--approved-by", required=True)
+    defer_cmd.add_argument("--db", required=True)
+
+    escalate_cmd = commands.add_parser("escalate", help="按升级链执行触达（幂等）")
+    _add_station_args(escalate_cmd)
+    escalate_cmd.add_argument("--now", default=None, help="模拟时刻（RFC3339，联调用）")
+    escalate_cmd.add_argument("--dry-run", action="store_true")
+
     inspect = commands.add_parser("inspect", help="账本概览")
     inspect.add_argument("--db", required=True)
 
@@ -158,6 +170,26 @@ def main(argv: list[str] | None = None) -> int:
                 raise SystemExit("格式：--set role=target（如 --set reminder_group=APM测试）")
             ledger.set_contact(args.station_id, role.strip(), target.strip(), updated_by="cli")
         print(json.dumps(ledger.get_contacts(args.station_id), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "defer":
+        ledger = Ledger(args.db)
+        deferral_id = f"{args.task_id}~{args.until}"
+        ledger.insert_deferral(deferral_id=deferral_id, task_id=args.task_id,
+                               reason=args.reason, approved_by=args.approved_by,
+                               until_at=args.until)
+        print(json.dumps({"deferred": deferral_id, "until": args.until,
+                          "approved_by": args.approved_by}, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "escalate":
+        from da_core.escalation import run_escalation
+
+        settings = _settings_from_args(args)
+        ledger = Ledger(settings.db_path)
+        ledger.seed_config(settings)
+        result = run_escalation(ledger, settings, now=args.now, dry_run=args.dry_run)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "inspect":

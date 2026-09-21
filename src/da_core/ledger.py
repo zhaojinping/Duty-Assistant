@@ -377,6 +377,28 @@ class Ledger:
                 (station_id,))
         }
 
+    # ── 延期（班长批） ──────────────────────────────────────────────
+
+    def insert_deferral(self, *, deferral_id: str, task_id: str, reason: str,
+                        approved_by: str, until_at: str) -> None:
+        self.conn.execute(
+            "INSERT OR REPLACE INTO deferrals(deferral_id, task_id, reason, approved_by, "
+            "until_at, created_at) VALUES(?,?,?,?,?,?)",
+            (deferral_id, task_id, reason, approved_by, until_at, iso_now()),
+        )
+        self.audit(approved_by or "core", "deferral", task_id,
+                   {"until": until_at, "reason": reason})
+        self.conn.commit()
+
+    def latest_deferral(self, station_id: str, group_label: str, due: str) -> str | None:
+        """该组当期任务的最新延期至（含已过期——口径顺延仍按延期日算）；无则 None。"""
+        row = self.conn.execute(
+            "SELECT until_at FROM deferrals WHERE task_id=? "
+            "ORDER BY created_at DESC, deferral_id DESC LIMIT 1",
+            (f"{station_id}|{group_label}|{due}",),
+        ).fetchone()
+        return row["until_at"] if row else None
+
     # ── 序号：含墓碑的完整视图 ───────────────────────────────────────
 
     def next_create_seq(self, station_id: str, record_type: str, occurred_at: str) -> int:
