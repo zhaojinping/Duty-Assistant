@@ -737,6 +737,30 @@ def test_pull_remote_process_and_idempotent_rescan(tmp_path):
     assert ledger.get_param(pull_intake.CURSOR_PARAM)["cursor"] == "c-1"  # 失败不推进
 
 
+def test_completion_reopens_rebased_period(tmp_path):
+    """完成测量使 next_due 回落至曾被 rebased 的周期：重开该任务行，不得崩溃。"""
+    from da_core.scheduler import sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-10-21", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-09-21T10:00:00+08:00")
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-10-30", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-09-21T10:00:00+08:00")  # 10-21 行 → rebased
+
+    assert submit_submission(submission_12v(), settings=settings,
+                             ledger=ledger)["ok"] is True
+
+    actions = sync_tasks(ledger, settings, now="2026-09-21T12:00:00+08:00")
+    task_id = "ST001|3号组(12只)|2026-10-21"
+    assert task_id in [u["task_id"] for u in actions["updated"]]
+    assert ("ST001|3号组(12只)|2026-10-30", "done") in [
+        (c["task_id"], c["state"]) for c in actions["closed"]]
+    row = ledger.get_task(task_id)
+    assert row["state"] == "open" and row["closed_at"] is None
+
+
 MANGLED_MESSAGE = (
     "**蓄电池电压测量数据**  \n**提交时间: 2026-09-21 11:47**  \n"
     "[组别] 3号组(12只) [温度] 23 [数量] 2/12\u3000[合格区间] 13.20~13.80V "
