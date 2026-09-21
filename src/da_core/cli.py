@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from da_core.ledger import Ledger
@@ -110,6 +111,16 @@ def main(argv: list[str] | None = None) -> int:
     pull_cmd.add_argument("--dry-run", action="store_true",
                           help="解析演练（不落账/不回执/不写表）")
     pull_cmd.add_argument("--no-reply", action="store_true", help="不回执到群")
+
+    pull_remote_cmd = commands.add_parser(
+        "pull-remote", help="拉取式输入源：从应用侧只读接口拉取新提交")
+    _add_station_args(pull_remote_cmd)
+    pull_remote_cmd.add_argument("--base-url", default=None,
+                                 help="接口基址（缺省读环境变量 DA_PULL_URL）")
+    pull_remote_cmd.add_argument("--token", default=None,
+                                 help="对接 token（缺省读环境变量 DA_PULL_TOKEN）")
+    pull_remote_cmd.add_argument("--limit", type=int, default=100)
+    pull_remote_cmd.add_argument("--dry-run", action="store_true", help="只取不落账")
 
     report_cmd = commands.add_parser("report", help="月报（按时率/测量/更正作废/触达，只读）")
     _add_station_args(report_cmd)
@@ -241,6 +252,19 @@ def main(argv: list[str] | None = None) -> int:
         ledger.seed_config(settings)
         result = poll_group(ledger, settings, reply=not args.no_reply,
                             dry_run=args.dry_run, limit=args.limit)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "pull-remote":
+        from da_core.pull_intake import pull_remote
+
+        settings = _settings_from_args(args)
+        ledger = Ledger(settings.db_path)
+        result = pull_remote(
+            ledger, settings,
+            base_url=args.base_url or os.environ.get("DA_PULL_URL"),
+            token=args.token or os.environ.get("DA_PULL_TOKEN"),
+            limit=args.limit, dry_run=args.dry_run)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
