@@ -153,6 +153,9 @@ _TABLES = (
     "intake_receipts",
 )
 
+# 周期任务种子（首个）——baseline 待现场规程核对后配置（开口项）
+_DEFAULT_CYCLE = {"cycle_days": 30, "baseline": None}
+
 
 def _dump(value) -> str:
     return json.dumps(value, ensure_ascii=False)
@@ -216,6 +219,10 @@ class Ledger:
             "INSERT OR IGNORE INTO config_params(key, value_json, updated_at) VALUES(?,?,?)",
             ("battery_group_kinds", _dump(settings.group_kinds), now),
         )
+        self.conn.execute(
+            "INSERT OR IGNORE INTO config_params(key, value_json, updated_at) VALUES(?,?,?)",
+            ("battery_cycle", _dump(_DEFAULT_CYCLE), now),
+        )
         self.conn.commit()
 
     def get_thresholds(self, record_type: str = "battery_voltage_test") -> dict:
@@ -243,6 +250,75 @@ class Ledger:
             "SELECT value_json FROM config_params WHERE key='battery_group_kinds'"
         ).fetchone()
         return json.loads(row["value_json"]) if row else {}
+
+    def get_cycle_config(self) -> dict:
+        row = self.conn.execute(
+            "SELECT value_json FROM config_params WHERE key='battery_cycle'"
+        ).fetchone()
+        return json.loads(row["value_json"]) if row else dict(_DEFAULT_CYCLE)
+
+    def set_cycle_config(self, *, cycle_days: int, baseline: str | None,
+                         updated_by: str = "") -> None:
+        current = self.get_cycle_config()
+        current.update({"cycle_days": int(cycle_days), "baseline": baseline})
+        self.conn.execute(
+            "INSERT INTO config_params(key, value_json, updated_at) VALUES('battery_cycle',?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, "
+            "updated_at=excluded.updated_at",
+            (_dump(current), iso_now()),
+        )
+        self.audit(updated_by or "core", "cycle_config_change", "battery_cycle", current)
+        self.conn.commit()
+
+    # ── 周期任务台账 ────────────────────────────────────────────────
+
+    def current_task(self, station_id: str, record_type: str,
+                     group_label: str) -> dict | None:
+        """当前在办任务（open/overdue 中 due 最大者）；task_id 约定 station|group|due。"""
+        row = self.conn.execute(
+            "SELECT * FROM tasks WHERE task_id LIKE ? AND record_type=? "
+            "AND state IN ('open','overdue') ORDER BY due_at DESC LIMIT 1",
+            (f"{station_id}|{group_label}|%", record_type),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def insert_task(self, *, task_id: str, station_id: str, record_type: str,
+                    period_key: str, due_at: str, state: str,
+                    overdue_since: str | None, opened_at: str) -> None:
+        self.conn.execute(
+            "INSERT INTO tasks(task_id, station_id, record_type, period_key, due_at, "
+            "overdue_since, state, level, opened_at) VALUES(?,?,?,?,?,?,?,?,?)",
+            (task_id, station_id, record_type, period_key, due_at, overdue_since,
+             state, 0, opened_at),
+        )
+        self.conn.commit()
+
+    def update_task_state(self, task_id: str, state: str, *,
+                          overdue_since: str | None = None) -> None:
+        self.conn.execute(
+            "UPDATE tasks SET state=?, overdue_since=COALESCE(?, overdue_since) "
+            "WHERE task_id=?",
+            (state, overdue_since, task_id),
+        )
+        self.conn.commit()
+
+    def close_task(self, task_id: str, *, state: str, closed_at: str) -> None:
+        self.conn.execute(
+            "UPDATE tasks SET state=?, closed_at=? WHERE task_id=?",
+            (state, closed_at, task_id),
+        )
+        self.conn.commit()
+
+    def list_tasks(self, station_id: str, *, states: tuple | None = None,
+                   record_type: str = "battery_voltage_test") -> list[dict]:
+        sql = "SELECT * FROM tasks WHERE station_id=? AND record_type=?"
+        params: list = [station_id, record_type]
+        if states:
+            marks = ",".join("?" for _ in states)
+            sql += f" AND state IN ({marks})"
+            params.extend(states)
+        sql += " ORDER BY due_at, task_id"
+        return [dict(row) for row in self.conn.execute(sql, params)]
 
     # ── 序号：含墓碑的完整视图 ───────────────────────────────────────
 

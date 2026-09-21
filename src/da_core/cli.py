@@ -67,6 +67,11 @@ def main(argv: list[str] | None = None) -> int:
     void.add_argument("--actor", required=True, help="操作人")
     _add_station_args(void)
 
+    scan_cmd = commands.add_parser("scan", help="周期扫描（只读视图；--sync 落台账）")
+    _add_station_args(scan_cmd)
+    scan_cmd.add_argument("--sync", action="store_true", help="同步 tasks 台账（写）")
+    scan_cmd.add_argument("--now", default=None, help="模拟时刻（RFC3339，联调用）")
+
     inspect = commands.add_parser("inspect", help="账本概览")
     inspect.add_argument("--db", required=True)
 
@@ -91,6 +96,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "void":
         settings = _settings_from_args(args)
         result = void_record(args.uid, reason=args.reason, actor=args.actor, settings=settings)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "scan":
+        from da_core.scheduler import scan as scan_cycles, sync_tasks
+
+        settings = _settings_from_args(args)
+        ledger = Ledger(settings.db_path)
+        ledger.seed_config(settings)
+        if args.sync:
+            result = sync_tasks(ledger, settings, now=args.now)
+        else:
+            result = scan_cycles(ledger, settings, now=args.now)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
