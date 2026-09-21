@@ -20,6 +20,14 @@ from pathlib import Path
 _TIMEOUT_SECONDS = 120
 _CHUNK_SIZE = 100
 
+# 生命周期状态 → 表格中文标签（账本状态列）
+_LIFECYCLE_LABELS = {
+    "draft": "草稿",
+    "confirmed": "已定稿",
+    "archived": "已归档",
+    "voided": "已作废",
+}
+
 
 def compose_rows(group_result: dict, *, field_ids: dict,
                  remark_tag: str | None = None) -> list[dict]:
@@ -59,7 +67,8 @@ def compose_rows(group_result: dict, *, field_ids: dict,
         put(cells, "备注", remark)
         put(cells, "账本UID", record["record_uid"])
         put(cells, "账本Rev", record["rev"])
-        put(cells, "账本状态", record["lifecycle"])
+        put(cells, "账本状态",
+            _LIFECYCLE_LABELS.get(record["lifecycle"], record["lifecycle"]))
         rows.append(cells)
     return rows
 

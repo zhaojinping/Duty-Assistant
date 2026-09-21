@@ -28,7 +28,6 @@ DEFAULT_GROUP_KINDS: dict[str, str] = {
 }
 
 # 本部署的输出落点：钉钉 AI 表格《蓄电池电压测量记录》（单一写者 = 核心系统）。
-# 账本列（账本UID/账本Rev/账本状态）字段 ID 待表增列后回填。
 DEFAULT_TABLE: dict = {
     "base_id": "np9zOoBVBYALR6aeuenZZglmW1DK0g6l",
     "table_id": "dqUu9rJ",
@@ -43,6 +42,9 @@ DEFAULT_TABLE: dict = {
         "是否异常": "6fOsduP",
         "判定说明": "ObdNEgb",
         "备注": "jp0iVgn",
+        "账本UID": "ReX3ynj",
+        "账本Rev": "FBj3fm5",
+        "账本状态": "4cGXQiF",
     },
 }
 

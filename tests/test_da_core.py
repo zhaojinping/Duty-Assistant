@@ -140,6 +140,10 @@ def test_row_composition(tmp_path):
     assert bad_row[field_ids["是否异常"]] == "异常"
     assert "cell_no=12" in bad_row[field_ids["判定说明"]]
 
+    assert ok_row[field_ids["账本UID"]] == group["record_uid"]
+    assert ok_row[field_ids["账本Rev"]] == 1
+    assert ok_row[field_ids["账本状态"]] == "已定稿"
+
 
 def test_dispatch_dry_run(tmp_path):
     settings = make_settings(tmp_path)
