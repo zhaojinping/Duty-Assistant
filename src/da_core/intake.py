@@ -39,6 +39,34 @@ class IntakeError(ValueError):
 _REQUIRED_GROUP_KEYS = ("group", "dc_system_id", "float_voltage", "test_kind", "items")
 
 
+def normalize_payload(group: dict) -> dict:
+    """组载荷 → 引擎 payload（``no``/``volt`` → ``cell_no``/``voltage``；可选键透传）。"""
+    items: list[dict] = []
+    for index, raw in enumerate(group.get("items") or []):
+        if not isinstance(raw, dict):
+            raise IntakeError(f"items[{index}] 必须是对象")
+        try:
+            cell_no = int(raw["no"])
+            voltage = float(raw["volt"])
+        except (KeyError, TypeError, ValueError):
+            raise IntakeError(
+                f"items[{index}] 需形如 {{'no': 1, 'volt': 2.23}}"
+            ) from None
+        entry = {"cell_no": cell_no, "voltage": voltage}
+        if raw.get("remark"):
+            entry["remark"] = raw["remark"]
+        items.append(entry)
+    payload = {
+        "dc_system_id": group.get("dc_system_id"),
+        "float_voltage": group.get("float_voltage"),
+        "test_kind": group.get("test_kind"),
+        "items": items,
+    }
+    if group.get("env_temp") is not None:
+        payload["env_temp"] = group["env_temp"]
+    return payload
+
+
 def parse_submission(data: dict, *, settings, ledger) -> list[dict]:
     """解析并组装信封列表；不落账、不判定（纯装配）。"""
     if not isinstance(data, dict):
@@ -70,29 +98,8 @@ def parse_submission(data: dict, *, settings, ledger) -> list[dict]:
         if scope is None:
             raise IntakeError(f"groups[{index}] 未知电池组别：{label!r}")
 
-        items: list[dict] = []
-        for item_index, raw in enumerate(group["items"]):
-            try:
-                cell_no = int(raw["no"])
-                voltage = float(raw["volt"])
-            except (KeyError, TypeError, ValueError):
-                raise IntakeError(
-                    f"groups[{index}].items[{item_index}] 需形如 {{'no': 1, 'volt': 2.23}}"
-                ) from None
-            entry = {"cell_no": cell_no, "voltage": voltage}
-            if raw.get("remark"):
-                entry["remark"] = raw["remark"]
-            items.append(entry)
-
         occurred_at = group.get("measured_at") or submitted_at
-        payload = {
-            "dc_system_id": group["dc_system_id"],
-            "float_voltage": group["float_voltage"],
-            "test_kind": group["test_kind"],
-            "items": items,
-        }
-        if group.get("env_temp") is not None:
-            payload["env_temp"] = group["env_temp"]
+        payload = normalize_payload(group)
 
         day, moment = wall_stamp(occurred_at)
         stamp_key = (station["station_id"], BATTERY_TYPE, day, moment)

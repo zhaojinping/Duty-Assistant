@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS records (
   current_rev  INTEGER NOT NULL,
   created_at   TEXT NOT NULL,
   confirmed_at TEXT,
-  voided_at    TEXT
+  voided_at    TEXT,
+  scope        TEXT,
+  group_label  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_records_station_type
   ON records(station_id, record_type);
@@ -151,6 +153,9 @@ _TABLES = (
     "intake_receipts",
 )
 
+# 周期任务种子（首个）——baseline 待现场规程核对后配置（开口项）
+_DEFAULT_CYCLE = {"cycle_days": 30, "baseline": None}
+
 
 def _dump(value) -> str:
     return json.dumps(value, ensure_ascii=False)
@@ -167,10 +172,37 @@ class Ledger:
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self.conn.executescript(_SCHEMA)
+        self._ensure_columns()
         self.conn.commit()
+
+    def _ensure_columns(self) -> None:
+        """轻量迁移：为存量库补新列（records.scope / records.group_label）。"""
+        existing = {row["name"] for row in self.conn.execute("PRAGMA table_info(records)")}
+        for name in ("scope", "group_label"):
+            if name not in existing:
+                self.conn.execute(f"ALTER TABLE records ADD COLUMN {name} TEXT")
 
     def close(self) -> None:
         self.conn.close()
+
+    def get_record(self, record_uid: str) -> dict | None:
+        """按 UID 取记录现状（含口径/组别），供更正/作废/催办定位 subject。"""
+        row = self.conn.execute(
+            "SELECT * FROM records WHERE record_uid=?", (record_uid,)
+        ).fetchone()
+        if row is None:
+            return None
+        keys = row.keys()
+        return {
+            "record_uid": row["record_uid"],
+            "record_type": row["record_type"],
+            "station_id": row["station_id"],
+            "occurred_at": row["occurred_at"],
+            "lifecycle": row["lifecycle"],
+            "rev": row["current_rev"],
+            "scope": row["scope"] if "scope" in keys else None,
+            "group_label": row["group_label"] if "group_label" in keys else None,
+        }
 
     # ── 配置：种子与读取 ─────────────────────────────────────────────
 
@@ -186,6 +218,10 @@ class Ledger:
         self.conn.execute(
             "INSERT OR IGNORE INTO config_params(key, value_json, updated_at) VALUES(?,?,?)",
             ("battery_group_kinds", _dump(settings.group_kinds), now),
+        )
+        self.conn.execute(
+            "INSERT OR IGNORE INTO config_params(key, value_json, updated_at) VALUES(?,?,?)",
+            ("battery_cycle", _dump(_DEFAULT_CYCLE), now),
         )
         self.conn.commit()
 
@@ -215,6 +251,75 @@ class Ledger:
         ).fetchone()
         return json.loads(row["value_json"]) if row else {}
 
+    def get_cycle_config(self) -> dict:
+        row = self.conn.execute(
+            "SELECT value_json FROM config_params WHERE key='battery_cycle'"
+        ).fetchone()
+        return json.loads(row["value_json"]) if row else dict(_DEFAULT_CYCLE)
+
+    def set_cycle_config(self, *, cycle_days: int, baseline: str | None,
+                         updated_by: str = "") -> None:
+        current = self.get_cycle_config()
+        current.update({"cycle_days": int(cycle_days), "baseline": baseline})
+        self.conn.execute(
+            "INSERT INTO config_params(key, value_json, updated_at) VALUES('battery_cycle',?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, "
+            "updated_at=excluded.updated_at",
+            (_dump(current), iso_now()),
+        )
+        self.audit(updated_by or "core", "cycle_config_change", "battery_cycle", current)
+        self.conn.commit()
+
+    # ── 周期任务台账 ────────────────────────────────────────────────
+
+    def current_task(self, station_id: str, record_type: str,
+                     group_label: str) -> dict | None:
+        """当前在办任务（open/overdue 中 due 最大者）；task_id 约定 station|group|due。"""
+        row = self.conn.execute(
+            "SELECT * FROM tasks WHERE task_id LIKE ? AND record_type=? "
+            "AND state IN ('open','overdue') ORDER BY due_at DESC LIMIT 1",
+            (f"{station_id}|{group_label}|%", record_type),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def insert_task(self, *, task_id: str, station_id: str, record_type: str,
+                    period_key: str, due_at: str, state: str,
+                    overdue_since: str | None, opened_at: str) -> None:
+        self.conn.execute(
+            "INSERT INTO tasks(task_id, station_id, record_type, period_key, due_at, "
+            "overdue_since, state, level, opened_at) VALUES(?,?,?,?,?,?,?,?,?)",
+            (task_id, station_id, record_type, period_key, due_at, overdue_since,
+             state, 0, opened_at),
+        )
+        self.conn.commit()
+
+    def update_task_state(self, task_id: str, state: str, *,
+                          overdue_since: str | None = None) -> None:
+        self.conn.execute(
+            "UPDATE tasks SET state=?, overdue_since=COALESCE(?, overdue_since) "
+            "WHERE task_id=?",
+            (state, overdue_since, task_id),
+        )
+        self.conn.commit()
+
+    def close_task(self, task_id: str, *, state: str, closed_at: str) -> None:
+        self.conn.execute(
+            "UPDATE tasks SET state=?, closed_at=? WHERE task_id=?",
+            (state, closed_at, task_id),
+        )
+        self.conn.commit()
+
+    def list_tasks(self, station_id: str, *, states: tuple | None = None,
+                   record_type: str = "battery_voltage_test") -> list[dict]:
+        sql = "SELECT * FROM tasks WHERE station_id=? AND record_type=?"
+        params: list = [station_id, record_type]
+        if states:
+            marks = ",".join("?" for _ in states)
+            sql += f" AND state IN ({marks})"
+            params.extend(states)
+        sql += " ORDER BY due_at, task_id"
+        return [dict(row) for row in self.conn.execute(sql, params)]
+
     # ── 序号：含墓碑的完整视图 ───────────────────────────────────────
 
     def next_create_seq(self, station_id: str, record_type: str, occurred_at: str) -> int:
@@ -232,16 +337,19 @@ class Ledger:
 
     # ── 写侧 ────────────────────────────────────────────────────────
 
-    def save_create(self, envelope: dict, result: dict, *, actor: str = "") -> None:
+    def save_create(self, envelope: dict, result: dict, *, actor: str = "",
+                    group_label: str | None = None, scope: str | None = None) -> None:
         record = result["record"]
         fields = record["fields"]
         station_id = envelope["station"]["station_id"]
         now = iso_now()
         self.conn.execute(
             "INSERT INTO records(record_uid, record_type, station_id, occurred_at, "
-            "lifecycle, current_rev, created_at) VALUES(?,?,?,?,?,?,?)",
+            "lifecycle, current_rev, created_at, scope, group_label) "
+            "VALUES(?,?,?,?,?,?,?,?,?)",
             (record["record_uid"], envelope["record_type"], station_id,
-             envelope["occurred_at"], record["lifecycle"], record["rev"], now),
+             envelope["occurred_at"], record["lifecycle"], record["rev"], now,
+             scope, group_label),
         )
         self.conn.execute(
             "INSERT INTO record_versions(record_uid, rev, fields_json, digest, op, created_at) "
@@ -276,6 +384,41 @@ class Ledger:
                 )
         self.audit(actor or "auto-confirm", "confirm", uid,
                    {"lifecycle": record["lifecycle"]})
+        self.conn.commit()
+
+    def save_correct(self, envelope: dict, result: dict, *, actor: str = "") -> None:
+        record = result["record"]
+        fields = record["fields"]
+        uid = record["record_uid"]
+        now = iso_now()
+        self.conn.execute(
+            "INSERT INTO record_versions(record_uid, rev, fields_json, digest, op, created_at) "
+            "VALUES(?,?,?,?,?,?)",
+            (uid, record["rev"], _dump(fields), record["digest"], "correct", now),
+        )
+        self.conn.execute(
+            "UPDATE records SET current_rev=?, lifecycle=? WHERE record_uid=?",
+            (record["rev"], record["lifecycle"], uid),
+        )
+        self.conn.execute(
+            "UPDATE dedupe_index SET occurred_day=?, test_kind=?, dc_system_id=? "
+            "WHERE record_uid=?",
+            (wall_day(envelope["occurred_at"]), fields.get("test_kind"),
+             fields.get("dc_system_id"), uid),
+        )
+        self.audit(actor or envelope.get("submitted_by") or "", "correct", uid,
+                   {"rev": record["rev"]})
+        self.conn.commit()
+
+    def save_void(self, envelope: dict, result: dict, *, actor: str = "") -> None:
+        record = result["record"]
+        uid = record["record_uid"]
+        self.conn.execute(
+            "UPDATE records SET lifecycle=?, voided_at=? WHERE record_uid=?",
+            (record["lifecycle"], iso_now(), uid),
+        )
+        self.audit(actor or envelope.get("voided_by") or "", "void", uid,
+                   {"reason": envelope.get("void_reason")})
         self.conn.commit()
 
     def update_alarm(self, station_id: str, record_type: str,

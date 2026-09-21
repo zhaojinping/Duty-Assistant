@@ -5,6 +5,12 @@
     python -m da_core.cli submit --file sample.json --db data/ledger.sqlite \
         --station-id ST001 --station-name XX风电场 [--dispatch --dry-run]
 
+    python -m da_core.cli correct --uid <UID> --file new_payload.json --actor 张三 \
+        --db data/ledger.sqlite --station-id ST001 --station-name XX风电场
+
+    python -m da_core.cli void --uid <UID> --reason "录入错误" --actor 张三 \
+        --db data/ledger.sqlite --station-id ST001 --station-name XX风电场
+
     python -m da_core.cli inspect --db data/ledger.sqlite
 """
 
@@ -12,12 +18,30 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 from da_core.ledger import Ledger
-from da_core.service import submit_submission
+from da_core.service import correct_submission, submit_submission, void_record
 from da_core.settings import Settings
+
+
+def _station_from_args(args) -> dict | None:
+    if args.station_id or args.station_name:
+        if not (args.station_id and args.station_name):
+            raise SystemExit("需要同时提供 --station-id 与 --station-name")
+        return {"station_id": args.station_id, "station_name": args.station_name}
+    return None
+
+
+def _settings_from_args(args) -> Settings:
+    return Settings.default(db_path=args.db, station=_station_from_args(args))
+
+
+def _add_station_args(parser) -> None:
+    parser.add_argument("--db", default=None,
+                        help="账本路径（缺省：$DA_DATA_DIR/ledger.sqlite 或 ./data/ledger.sqlite）")
+    parser.add_argument("--station-id", default=None)
+    parser.add_argument("--station-name", default=None)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -26,13 +50,27 @@ def main(argv: list[str] | None = None) -> int:
 
     submit = commands.add_parser("submit", help="提交一批测量数据（完整核心链路）")
     submit.add_argument("--file", required=True, help="提交 JSON 文件")
-    submit.add_argument("--db", default=None,
-                        help="账本路径（缺省：$DA_DATA_DIR/ledger.sqlite 或 ./data/ledger.sqlite）")
-    submit.add_argument("--station-id", default=None)
-    submit.add_argument("--station-name", default=None)
+    _add_station_args(submit)
     submit.add_argument("--dispatch", action="store_true", help="写输出投影（钉钉表格）")
     submit.add_argument("--dry-run", action="store_true", help="投递演练：只组装行、不写表")
     submit.add_argument("--remark-tag", default=None, help="联调标记：写入行备注（便于清理）")
+
+    correct = commands.add_parser("correct", help="定稿更正（全量替换 payload，免签自动重新定稿）")
+    correct.add_argument("--uid", required=True, help="账本记录 UID")
+    correct.add_argument("--file", required=True, help="新 payload JSON（与提交 groups[] 同形）")
+    correct.add_argument("--actor", required=True, help="操作人")
+    _add_station_args(correct)
+
+    void = commands.add_parser("void", help="作废记录（墓碑占号，判重键释放）")
+    void.add_argument("--uid", required=True, help="账本记录 UID")
+    void.add_argument("--reason", required=True, help="作废原因")
+    void.add_argument("--actor", required=True, help="操作人")
+    _add_station_args(void)
+
+    scan_cmd = commands.add_parser("scan", help="周期扫描（只读视图；--sync 落台账）")
+    _add_station_args(scan_cmd)
+    scan_cmd.add_argument("--sync", action="store_true", help="同步 tasks 台账（写）")
+    scan_cmd.add_argument("--now", default=None, help="模拟时刻（RFC3339，联调用）")
 
     inspect = commands.add_parser("inspect", help="账本概览")
     inspect.add_argument("--db", required=True)
@@ -40,17 +78,38 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "submit":
-        station = None
-        if args.station_id or args.station_name:
-            if not (args.station_id and args.station_name):
-                print("需要同时提供 --station-id 与 --station-name", file=sys.stderr)
-                return 2
-            station = {"station_id": args.station_id, "station_name": args.station_name}
-        settings = Settings.default(db_path=args.db, station=station)
+        settings = _settings_from_args(args)
         data = json.loads(Path(args.file).read_text(encoding="utf-8"))
         summary = submit_submission(data, settings=settings, dispatch=args.dispatch,
                                     dry_run_dispatch=args.dry_run, remark_tag=args.remark_tag)
         print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "correct":
+        settings = _settings_from_args(args)
+        payload = json.loads(Path(args.file).read_text(encoding="utf-8"))
+        result = correct_submission(payload, record_uid=args.uid, actor=args.actor,
+                                    settings=settings)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "void":
+        settings = _settings_from_args(args)
+        result = void_record(args.uid, reason=args.reason, actor=args.actor, settings=settings)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "scan":
+        from da_core.scheduler import scan as scan_cycles, sync_tasks
+
+        settings = _settings_from_args(args)
+        ledger = Ledger(settings.db_path)
+        ledger.seed_config(settings)
+        if args.sync:
+            result = sync_tasks(ledger, settings, now=args.now)
+        else:
+            result = scan_cycles(ledger, settings, now=args.now)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "inspect":

@@ -180,3 +180,102 @@ def test_extract_record_ids_from_create_response():
     assert _extract_record_ids(stdout) == ["rec1", "rec2"]
     assert _extract_record_ids("not json") == []
     assert _extract_record_ids('{"data": {"records": [{"recordId": "r3"}]}}') == ["r3"]
+
+
+def test_correct_then_auto_confirm(tmp_path):
+    from da_core.service import correct_submission
+
+    settings = make_settings(tmp_path)
+    summary = submit_submission(submission_12v(), settings=settings)
+    uid = summary["groups"][0]["record_uid"]
+    ledger = Ledger(settings.db_path)
+
+    corrected_payload = {
+        "dc_system_id": "DC-003",
+        "float_voltage": 13.5,
+        "test_kind": "定期",
+        "env_temp": 25,
+        "items": [{"no": number, "volt": 13.40} for number in range(1, 13)],
+    }
+    result = correct_submission(corrected_payload, record_uid=uid, actor="李四",
+                                settings=settings, ledger=ledger)
+
+    assert result["status"] == "ok"
+    assert result["rev"] == 2
+    assert result["lifecycle"] == "confirmed"
+    assert [link["type"] for link in result["links"]] == ["supersedes"]
+
+    record = ledger.get_record(uid)
+    assert record["rev"] == 2 and record["lifecycle"] == "confirmed"
+    view = ledger.build_ledger_view("ST001", "battery_voltage_test")
+    row = view["same_type_records"][0]
+    assert row["rev"] == 2 and row["lifecycle"] == "confirmed"
+    assert all(item["voltage"] == 13.4 for item in row["fields"]["items"])
+    assert len(view["confirmed_digests"]) == 2  # rev1 + rev2 并存
+    assert not violations_for(result["rules"], 12)
+
+
+def test_void_then_resubmit_allowed(tmp_path):
+    from da_core.service import void_record
+
+    settings = make_settings(tmp_path)
+    summary = submit_submission(submission_12v(), settings=settings)
+    uid = summary["groups"][0]["record_uid"]
+    ledger = Ledger(settings.db_path)
+
+    result = void_record(uid, reason="录入错误", actor="李四", settings=settings, ledger=ledger)
+    assert result["status"] == "ok"
+    assert result["lifecycle"] == "voided"
+    assert ledger.get_record(uid)["lifecycle"] == "voided"
+
+    again = submission_12v(client_submission_id="test-12v-after-void")
+    summary2 = submit_submission(again, settings=settings)
+    assert summary2["ok"] is True
+    assert summary2["groups"][0]["record_uid"] != uid
+
+
+def test_cycle_scan_and_task_sync(tmp_path):
+    from da_core.scheduler import scan, sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+
+    # 无历史 + baseline 未配置 → awaiting_baseline，不产生任务
+    report = scan(ledger, settings, now="2026-09-21T10:00:00+08:00")
+    assert report["groups"][0]["next_due"] is None
+    assert report["groups"][0]["status"] == "awaiting_baseline"
+    actions = sync_tasks(ledger, settings, now="2026-09-21T10:00:00+08:00")
+    assert len(actions["awaiting_baseline"]) == 4
+    assert not actions["created"]
+
+    # 配置 baseline → 每组建当期任务（due = baseline）
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-08-01", updated_by="测试")
+    actions = sync_tasks(ledger, settings, now="2026-07-30T10:00:00+08:00")
+    assert len(actions["created"]) == 4
+    tasks = ledger.list_tasks("ST001", states=("open", "overdue"))
+    three = next(t for t in tasks if "3号组" in t["task_id"])
+    assert three["due_at"] == "2026-08-01" and three["state"] == "open"
+
+    # 迟到完成（08-20 > due 08-01）→ 旧任务 done_late 结案，锚点滚动到 09-19
+    late = submission_12v(client_submission_id="t2-late",
+                          submitted_at="2026-08-20T10:00:00+08:00")
+    assert submit_submission(late, settings=settings)["ok"] is True
+    actions = sync_tasks(ledger, settings, now="2026-08-25T10:00:00+08:00")
+    assert [c["state"] for c in actions["closed"]] == ["done_late"]
+    assert "3号组" in actions["closed"][0]["task_id"]
+    assert [c["due"] for c in actions["created"]] == ["2026-09-19"]
+
+    # 按时完成（09-15 ≤ due 09-19）→ done 结案，锚点滚动到 10-15
+    ontime = submission_12v(client_submission_id="t2-ontime",
+                            submitted_at="2026-09-15T10:00:00+08:00")
+    assert submit_submission(ontime, settings=settings)["ok"] is True
+    actions = sync_tasks(ledger, settings, now="2026-09-21T10:00:00+08:00")
+    assert [c["state"] for c in actions["closed"]] == ["done"]
+    assert [c["due"] for c in actions["created"]] == ["2026-10-15"]
+
+    # 逾期推进：now 超过 due 10-15 → 任务转 overdue
+    actions = sync_tasks(ledger, settings, now="2026-10-20T10:00:00+08:00")
+    assert [u["state"] for u in actions["updated"]] == ["overdue"]
+    current = ledger.current_task("ST001", "battery_voltage_test", "3号组(12只)")
+    assert current["state"] == "overdue" and current["overdue_since"] == "2026-10-16"
