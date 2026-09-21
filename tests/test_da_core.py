@@ -180,3 +180,55 @@ def test_extract_record_ids_from_create_response():
     assert _extract_record_ids(stdout) == ["rec1", "rec2"]
     assert _extract_record_ids("not json") == []
     assert _extract_record_ids('{"data": {"records": [{"recordId": "r3"}]}}') == ["r3"]
+
+
+def test_correct_then_auto_confirm(tmp_path):
+    from da_core.service import correct_submission
+
+    settings = make_settings(tmp_path)
+    summary = submit_submission(submission_12v(), settings=settings)
+    uid = summary["groups"][0]["record_uid"]
+    ledger = Ledger(settings.db_path)
+
+    corrected_payload = {
+        "dc_system_id": "DC-003",
+        "float_voltage": 13.5,
+        "test_kind": "定期",
+        "env_temp": 25,
+        "items": [{"no": number, "volt": 13.40} for number in range(1, 13)],
+    }
+    result = correct_submission(corrected_payload, record_uid=uid, actor="李四",
+                                settings=settings, ledger=ledger)
+
+    assert result["status"] == "ok"
+    assert result["rev"] == 2
+    assert result["lifecycle"] == "confirmed"
+    assert [link["type"] for link in result["links"]] == ["supersedes"]
+
+    record = ledger.get_record(uid)
+    assert record["rev"] == 2 and record["lifecycle"] == "confirmed"
+    view = ledger.build_ledger_view("ST001", "battery_voltage_test")
+    row = view["same_type_records"][0]
+    assert row["rev"] == 2 and row["lifecycle"] == "confirmed"
+    assert all(item["voltage"] == 13.4 for item in row["fields"]["items"])
+    assert len(view["confirmed_digests"]) == 2  # rev1 + rev2 并存
+    assert not violations_for(result["rules"], 12)
+
+
+def test_void_then_resubmit_allowed(tmp_path):
+    from da_core.service import void_record
+
+    settings = make_settings(tmp_path)
+    summary = submit_submission(submission_12v(), settings=settings)
+    uid = summary["groups"][0]["record_uid"]
+    ledger = Ledger(settings.db_path)
+
+    result = void_record(uid, reason="录入错误", actor="李四", settings=settings, ledger=ledger)
+    assert result["status"] == "ok"
+    assert result["lifecycle"] == "voided"
+    assert ledger.get_record(uid)["lifecycle"] == "voided"
+
+    again = submission_12v(client_submission_id="test-12v-after-void")
+    summary2 = submit_submission(again, settings=settings)
+    assert summary2["ok"] is True
+    assert summary2["groups"][0]["record_uid"] != uid

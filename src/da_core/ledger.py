@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS records (
   current_rev  INTEGER NOT NULL,
   created_at   TEXT NOT NULL,
   confirmed_at TEXT,
-  voided_at    TEXT
+  voided_at    TEXT,
+  scope        TEXT,
+  group_label  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_records_station_type
   ON records(station_id, record_type);
@@ -167,10 +169,37 @@ class Ledger:
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self.conn.executescript(_SCHEMA)
+        self._ensure_columns()
         self.conn.commit()
+
+    def _ensure_columns(self) -> None:
+        """轻量迁移：为存量库补新列（records.scope / records.group_label）。"""
+        existing = {row["name"] for row in self.conn.execute("PRAGMA table_info(records)")}
+        for name in ("scope", "group_label"):
+            if name not in existing:
+                self.conn.execute(f"ALTER TABLE records ADD COLUMN {name} TEXT")
 
     def close(self) -> None:
         self.conn.close()
+
+    def get_record(self, record_uid: str) -> dict | None:
+        """按 UID 取记录现状（含口径/组别），供更正/作废/催办定位 subject。"""
+        row = self.conn.execute(
+            "SELECT * FROM records WHERE record_uid=?", (record_uid,)
+        ).fetchone()
+        if row is None:
+            return None
+        keys = row.keys()
+        return {
+            "record_uid": row["record_uid"],
+            "record_type": row["record_type"],
+            "station_id": row["station_id"],
+            "occurred_at": row["occurred_at"],
+            "lifecycle": row["lifecycle"],
+            "rev": row["current_rev"],
+            "scope": row["scope"] if "scope" in keys else None,
+            "group_label": row["group_label"] if "group_label" in keys else None,
+        }
 
     # ── 配置：种子与读取 ─────────────────────────────────────────────
 
@@ -232,16 +261,19 @@ class Ledger:
 
     # ── 写侧 ────────────────────────────────────────────────────────
 
-    def save_create(self, envelope: dict, result: dict, *, actor: str = "") -> None:
+    def save_create(self, envelope: dict, result: dict, *, actor: str = "",
+                    group_label: str | None = None, scope: str | None = None) -> None:
         record = result["record"]
         fields = record["fields"]
         station_id = envelope["station"]["station_id"]
         now = iso_now()
         self.conn.execute(
             "INSERT INTO records(record_uid, record_type, station_id, occurred_at, "
-            "lifecycle, current_rev, created_at) VALUES(?,?,?,?,?,?,?)",
+            "lifecycle, current_rev, created_at, scope, group_label) "
+            "VALUES(?,?,?,?,?,?,?,?,?)",
             (record["record_uid"], envelope["record_type"], station_id,
-             envelope["occurred_at"], record["lifecycle"], record["rev"], now),
+             envelope["occurred_at"], record["lifecycle"], record["rev"], now,
+             scope, group_label),
         )
         self.conn.execute(
             "INSERT INTO record_versions(record_uid, rev, fields_json, digest, op, created_at) "
@@ -276,6 +308,41 @@ class Ledger:
                 )
         self.audit(actor or "auto-confirm", "confirm", uid,
                    {"lifecycle": record["lifecycle"]})
+        self.conn.commit()
+
+    def save_correct(self, envelope: dict, result: dict, *, actor: str = "") -> None:
+        record = result["record"]
+        fields = record["fields"]
+        uid = record["record_uid"]
+        now = iso_now()
+        self.conn.execute(
+            "INSERT INTO record_versions(record_uid, rev, fields_json, digest, op, created_at) "
+            "VALUES(?,?,?,?,?,?)",
+            (uid, record["rev"], _dump(fields), record["digest"], "correct", now),
+        )
+        self.conn.execute(
+            "UPDATE records SET current_rev=?, lifecycle=? WHERE record_uid=?",
+            (record["rev"], record["lifecycle"], uid),
+        )
+        self.conn.execute(
+            "UPDATE dedupe_index SET occurred_day=?, test_kind=?, dc_system_id=? "
+            "WHERE record_uid=?",
+            (wall_day(envelope["occurred_at"]), fields.get("test_kind"),
+             fields.get("dc_system_id"), uid),
+        )
+        self.audit(actor or envelope.get("submitted_by") or "", "correct", uid,
+                   {"rev": record["rev"]})
+        self.conn.commit()
+
+    def save_void(self, envelope: dict, result: dict, *, actor: str = "") -> None:
+        record = result["record"]
+        uid = record["record_uid"]
+        self.conn.execute(
+            "UPDATE records SET lifecycle=?, voided_at=? WHERE record_uid=?",
+            (record["lifecycle"], iso_now(), uid),
+        )
+        self.audit(actor or envelope.get("voided_by") or "", "void", uid,
+                   {"reason": envelope.get("void_reason")})
         self.conn.commit()
 
     def update_alarm(self, station_id: str, record_type: str,
