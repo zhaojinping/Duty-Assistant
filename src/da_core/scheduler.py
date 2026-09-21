@@ -132,10 +132,11 @@ def sync_tasks(ledger, settings, *, now: str | None = None) -> dict:
             actions["closed"].append({"task_id": current["task_id"], "state": final_state})
 
         task_id = _task_id(station_id, item["group"], desired_due)
-        ledger.insert_task(task_id=task_id, station_id=station_id,
-                           record_type=BATTERY_TYPE, period_key=desired_due.isoformat(),
-                           due_at=desired_due.isoformat(), state=desired_state,
-                           overdue_since=overdue_since, opened_at=iso_now())
-        actions["created"].append({"task_id": task_id, "due": desired_due.isoformat(),
-                                   "state": desired_state})
+        created = ledger.upsert_task(
+            task_id=task_id, station_id=station_id, record_type=BATTERY_TYPE,
+            period_key=desired_due.isoformat(), due_at=desired_due.isoformat(),
+            state=desired_state, overdue_since=overdue_since, opened_at=iso_now())
+        (actions["created"] if created else actions["updated"]).append(
+            {"task_id": task_id, "due": desired_due.isoformat(),
+             "state": desired_state})
     return actions

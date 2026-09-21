@@ -296,6 +296,30 @@ class Ledger:
         )
         self.conn.commit()
 
+    def get_task(self, task_id: str) -> dict | None:
+        row = self.conn.execute("SELECT * FROM tasks WHERE task_id=?",
+                                (task_id,)).fetchone()
+        return dict(row) if row else None
+
+    def upsert_task(self, *, task_id: str, station_id: str, record_type: str,
+                    period_key: str, due_at: str, state: str,
+                    overdue_since: str | None, opened_at: str) -> bool:
+        """建任务；同周期行已存在（曾被 rebased/done 关闭）→ 重开为在办。返回 True=新建。"""
+        row = self.conn.execute("SELECT state FROM tasks WHERE task_id=?",
+                                (task_id,)).fetchone()
+        if row is None:
+            self.insert_task(task_id=task_id, station_id=station_id,
+                             record_type=record_type, period_key=period_key,
+                             due_at=due_at, state=state, overdue_since=overdue_since,
+                             opened_at=opened_at)
+            return True
+        self.conn.execute(
+            "UPDATE tasks SET state=?, overdue_since=?, closed_at=NULL, level=0 "
+            "WHERE task_id=?",
+            (state, overdue_since, task_id))
+        self.conn.commit()
+        return False
+
     def update_task_state(self, task_id: str, state: str, *,
                           overdue_since: str | None = None) -> None:
         self.conn.execute(
