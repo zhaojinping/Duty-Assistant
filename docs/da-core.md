@@ -1,0 +1,76 @@
+# da_core —— Duty-Assistant 核心系统（架构与运维速览）
+
+> 定位：`records_kit`（纯引擎）之上的第一个正式壳层——账本、编排、触达、投影。
+> 依赖铁律：`records_kit` 永不 import `da_core`；反向允许（CI 检查守住）。
+
+## 模块图
+
+```
+输入 ─ intake（提交解析/信封组装）
+        ↓
+   engine_gate（注册表注入：阈值按口径覆盖）→ records_kit.process（纯引擎判定）
+        ↓
+   service（create → 落账 → 零签认自动定稿；correct / void）
+        ↕
+   ledger（SQLite 权威账本：记录/版本/判重/告警/任务/回执/审计/配置）
+        ↕
+   scheduler（周期扫描：锚点滚动到期 + tasks 台账对账）
+        ↓
+   escalation（升级链六级，幂等）→ outbox（群消息 + 待办 + DM，回执留痕）
+        ↓
+   table_projection（钉钉 AI 表格逐行投影，单一写者）／reconcile（表↔账本对账，只读）
+```
+
+## CLI 一览（`python -m da_core.cli <命令>`）
+
+| 命令 | 用途 |
+|---|---|
+| `submit` | 提交（`--dispatch` 写投影 / `--dry-run` 演练 / `--remark-tag` 联调标记） |
+| `correct` | 定稿更正（全量替换 payload，免签自动重新定稿） |
+| `void` | 作废（墓碑占号，判重键释放） |
+| `scan [--sync] [--now]` | 周期扫描：只读视图 / 落 tasks 台账（`--now` 模拟时刻） |
+| `escalate [--now] [--dry-run]` | 按升级链执行触达（幂等，每级每渠道一次） |
+| `notify [--task-id] [--dry-run]` | 按任务当前状态触达（联调/运维入口） |
+| `contacts --set role=target` | 触达目标：reminder_group / reminder_assignee / reminder_escalate |
+| `defer --task-id --until --reason --approved-by` | 延期（班长批），有效截止顺延 |
+| `reconcile` | 表↔账本对账（只读；无账本UID的行按 legacy 计数） |
+| `cycle --set-baseline/--set-cycle-days` | 周期配置 |
+| `inspect` | 账本概览（各表计数） |
+
+## 日常跑（无人值守）
+
+```bash
+uv run python scripts/da_daily.py --db <ledger.sqlite> \
+    --station-id ST001 --station-name XX风电场 [--dry-run]
+```
+
+= `scan --sync → escalate → reconcile`；建议每日 08:30（cron / 任务计划）。
+
+## 账本
+
+- 落点：`$DA_DATA_DIR/ledger.sqlite`（本部署：`D:\Hermes\DutyPlus\data\ledger.sqlite`，WAL 模式）。
+- 13 表：records / record_versions / dedupe_index / confirmations / alarms / tasks /
+  task_events / deferrals / config_thresholds / config_contacts / config_params /
+  ops_audit / intake_receipts。
+- 一切写操作留审计（ops_audit）；触达留回执（task_events，含失败与重试计数）。
+
+## 触达语义（outbox）
+
+- 双轨：群消息 + 待办（待办常驻）；升级级别 ≥4 追加对升级对象的 DM。
+- 幂等键 `(task_id, level, channel)`；同键重试上限 3 次；失败如实留痕。
+- 级别：1 前3天 / 2 当天 / 3 逾期+1 / 4 逾期+3（升班长）/ 5 逾期+7（升班长）/
+  6 月底；（0 保留给联调/手工）。
+
+## 配置（以账本 config_* 表为运行期权威）
+
+- `config_thresholds`：`2V单体` 1.85–2.35 / `12V电池` 11.85–13.80（可配）。
+- `config_params.battery_cycle`：`cycle_days=30`、`baseline`（起算日，待现场规程核对）。
+- `config_contacts`：触达目标三角色（见上）。
+
+## 纪律（改代码前先读）
+
+1. **单一写者**：钉钉表格只由核心投影写入；人工改数走正式通道（更正）。
+2. **引擎零 IO**：判定只在 `records_kit`；时钟/网络/数据库只在 `da_core`。
+3. **对外写后必核验**：dws 写操作的返回只是回执；状态以独立回读为准。
+4. **未知状态先回查不重放**：超时/断连后先对账，再决定是否重试。
+5. 新增表格列 / 改阈值：先改配置与文档，再动数据。
