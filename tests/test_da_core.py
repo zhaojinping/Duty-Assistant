@@ -627,6 +627,24 @@ def test_correct_table_sync_failure_does_not_block_ledger(tmp_path):
     assert ledger.get_record(uid)["rev"] == 2
 
 
+def test_group_receipt_text_branches():
+    from da_core.group_intake import _receipt_text
+
+    dup = _receipt_text({"ok": False, "groups": [
+        {"group": "3号组(12只)", "status": "rejected",
+         "validation": {"errors": [{"code": "E_DUP_KEY", "message": "x"}]}}]})
+    assert "无需重发" in dup and "请补" not in dup
+
+    missing = _receipt_text({"ok": False, "groups": [
+        {"group": "3号组(12只)", "status": "rejected",
+         "validation": {"errors": [{"code": "E_REQUIRED", "message": "y"}]}}]})
+    assert "请补" in missing and "缺必填字段" in missing
+
+    assert _receipt_text({"ok": True, "replayed": False, "groups": [
+        {"group": "3号组(12只)", "status": "ok", "_payload": {"items": [1, 2]},
+         "rules": [{"verdict": "violation"}]}]}).startswith("✅ 已入库")
+
+
 def test_monthly_report_counts(tmp_path):
     from da_core.reporting import monthly_report
     from da_core.scheduler import sync_tasks

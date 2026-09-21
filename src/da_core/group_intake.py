@@ -161,17 +161,25 @@ def _receipt_text(summary: dict) -> str:
         return ""  # 重放不回执（防刷屏）
     if not summary.get("ok"):
         reasons = []
+        need_fix = False
         for group in summary.get("groups") or []:
             if group.get("status") != "rejected":
                 continue
             errors = (group.get("validation") or {}).get("errors") or []
             codes = {error.get("code") for error in errors}
             if "E_REQUIRED" in codes:
+                need_fix = True
                 reasons.append(f"{group['group']}：缺必填字段（{_REQUIRED_HINT}）")
+            elif "E_DUP_KEY" in codes:
+                reasons.append(f"{group['group']}：同日同组已有记录，无需重发")
             else:
-                reasons.append(f"{group['group']}：{errors[:1]}")
-        return ("⚠️ 未入库：" + "；".join(reasons)
-                + "\n请补 [直流系统] [浮充电压] [测试性质] 行后重发。\n——AI助手")
+                first = (errors[:1] or [{}])[0]
+                message = first.get("message") or first.get("code") or "校验未通过"
+                reasons.append(f"{group['group']}：{message}")
+        text = "⚠️ 未入库：" + "；".join(reasons)
+        if need_fix:
+            text += "\n请补 [直流系统] [浮充电压] [测试性质] 行后重发。"
+        return text + "\n——AI助手"
     parts = []
     for group in summary.get("groups") or []:
         if group.get("status") != "ok":
