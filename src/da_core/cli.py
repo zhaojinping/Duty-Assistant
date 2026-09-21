@@ -128,13 +128,14 @@ def main(argv: list[str] | None = None) -> int:
         settings = _settings_from_args(args)
         payload = json.loads(Path(args.file).read_text(encoding="utf-8"))
         result = correct_submission(payload, record_uid=args.uid, actor=args.actor,
-                                    settings=settings)
+                                    settings=settings, dispatch=True)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "void":
         settings = _settings_from_args(args)
-        result = void_record(args.uid, reason=args.reason, actor=args.actor, settings=settings)
+        result = void_record(args.uid, reason=args.reason, actor=args.actor,
+                             settings=settings, dispatch=True)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 

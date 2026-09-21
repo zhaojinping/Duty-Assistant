@@ -142,8 +142,12 @@ def _require_station(settings: Settings) -> dict:
 
 
 def correct_submission(payload_group: dict, *, record_uid: str, actor: str,
-                       settings: Settings, ledger: Ledger | None = None) -> dict:
-    """定稿更正：payload 全量替换 → 新版 rev+1（draft）→ 免签自动重新定稿。"""
+                       settings: Settings, ledger: Ledger | None = None,
+                       dispatch: bool = False, runner=None) -> dict:
+    """定稿更正：payload 全量替换 → 新版 rev+1（draft）→ 免签自动重新定稿。
+
+    ``dispatch=True`` 时同步表格行（投影增强）；同步失败不阻塞账本事实、留审计。
+    """
     ledger = ledger or Ledger(settings.db_path)
     station = _require_station(settings)
     target = ledger.get_record(record_uid)
@@ -158,6 +162,7 @@ def correct_submission(payload_group: dict, *, record_uid: str, actor: str,
         raise intake.IntakeError(
             f"记录口径未定（scope={scope!r}），无法更正；请先补全记录口径")
 
+    normalized_payload = intake.normalize_payload(payload_group)
     registry = registry_for_band(*thresholds[scope])
     envelope = {
         "protocol": "records-kit",
@@ -170,7 +175,7 @@ def correct_submission(payload_group: dict, *, record_uid: str, actor: str,
         "submitted_by": actor,
         "subject": {"record_uid": record_uid, "lifecycle": target["lifecycle"],
                     "rev": target["rev"]},
-        "payload": intake.normalize_payload(payload_group),
+        "payload": normalized_payload,
         "ledger_view": ledger.build_ledger_view(station["station_id"], BATTERY_TYPE),
     }
     corrected = records_kit.process(envelope, registry)
@@ -200,14 +205,33 @@ def correct_submission(payload_group: dict, *, record_uid: str, actor: str,
         ledger.audit("core", "auto_confirm_failed", record_uid, confirmed["validation"])
     ledger.update_alarm(station["station_id"], BATTERY_TYPE, corrected.get("alarm_state"),
                         envelope["occurred_at"])
+
+    table_sync = None
+    if dispatch:
+        from da_core import table_projection
+        group_result = {
+            "group": target.get("group_label") or "",
+            "_payload": normalized_payload,
+            "_record": {"record_uid": record_uid, "rev": record["rev"],
+                        "lifecycle": lifecycle},
+            "rules": corrected.get("rules") or [],
+        }
+        try:
+            table_sync = table_projection.sync_updated_record(
+                group_result, settings=settings, runner=runner)
+        except Exception as exc:  # noqa: BLE001 — 同步失败不阻塞账本事实
+            ledger.audit("core", "table_sync_failed", record_uid,
+                         {"error": repr(exc)[:200]})
+            table_sync = {"ok": False, "error": repr(exc)[:200]}
     return {"status": "ok", "record_uid": record_uid, "rev": record["rev"],
             "lifecycle": lifecycle, "rules": corrected.get("rules") or [],
-            "links": record.get("links") or []}
+            "links": record.get("links") or [], "table_sync": table_sync}
 
 
 def void_record(record_uid: str, *, reason: str, actor: str,
-                settings: Settings, ledger: Ledger | None = None) -> dict:
-    """作废：墓碑占号（rev/内容不变），判重键释放。"""
+                settings: Settings, ledger: Ledger | None = None,
+                dispatch: bool = False, runner=None) -> dict:
+    """作废：墓碑占号（rev/内容不变），判重键释放；``dispatch`` 时同步表格状态列。"""
     ledger = ledger or Ledger(settings.db_path)
     station = _require_station(settings)
     target = ledger.get_record(record_uid)
@@ -242,6 +266,18 @@ def void_record(record_uid: str, *, reason: str, actor: str,
     if voided["status"] != "ok":
         return {"status": "rejected", "validation": voided["validation"]}
     ledger.save_void(envelope, voided, actor=actor)
+
+    table_sync = None
+    if dispatch:
+        from da_core import table_projection
+        try:
+            table_sync = table_projection.sync_void_record(
+                settings, record_uid, runner=runner)
+        except Exception as exc:  # noqa: BLE001 — 同步失败不阻塞账本事实
+            ledger.audit("core", "table_sync_failed", record_uid,
+                         {"error": repr(exc)[:200]})
+            table_sync = {"ok": False, "error": repr(exc)[:200]}
     return {"status": "ok", "record_uid": record_uid,
             "rev": voided["record"]["rev"],
-            "lifecycle": voided["record"]["lifecycle"]}
+            "lifecycle": voided["record"]["lifecycle"],
+            "table_sync": table_sync}

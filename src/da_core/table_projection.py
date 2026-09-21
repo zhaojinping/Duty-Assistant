@@ -168,3 +168,83 @@ def _dws_command(exe: str, args: list[str]) -> list[str]:
     if exe.lower().endswith((".cmd", ".bat")):
         return ["cmd", "/c", exe, *args]
     return [exe, *args]
+
+
+# ── 更正 / 作废 的行同步（投影增强） ────────────────────────────────
+
+def _submit_updates(settings, updates: list[dict], *, runner=None) -> dict:
+    """批量更新表格行（+record-update，--yes 表既有授权）。"""
+    if not updates:
+        return {"written": 0, "failures": []}
+    from da_core import dws_cli
+
+    rc, out, err = (runner or dws_cli.run_dws)([
+        "aitable", "+record-update",
+        "--base-id", settings.table["base_id"],
+        "--table-id", settings.table["table_id"],
+        "--records", json.dumps(updates, ensure_ascii=False),
+        "--format", "json", "--yes"])
+    if rc != 0:
+        return {"written": 0, "failures": [(err or out).strip()[:300]]}
+    return {"written": len(updates), "failures": []}
+
+
+def _row_index(settings, record_uid: str, *, runner=None) -> dict:
+    """读表并按（电池序号）索引该 UID 的行 → ``{cell_no: recordId}``。"""
+    from da_core.reconcile import _text, fetch_table_rows
+
+    field_ids = settings.table["field_ids"]
+    index: dict[int, str] = {}
+    for row in fetch_table_rows(settings, runner=runner):
+        cells = row.get("cells") or {}
+        if _text(cells.get(field_ids["账本UID"])) != record_uid:
+            continue
+        try:
+            index[int(float(cells.get(field_ids["电池序号"])))] = row.get("recordId")
+        except (TypeError, ValueError):
+            continue
+    return index
+
+
+def sync_updated_record(group_result: dict, *, settings, runner=None,
+                        dry_run: bool = False) -> dict:
+    """更正后同步：按（账本UID + 电池序号）更新既有行（缺行记入 missing_cells）。"""
+    uid = group_result["_record"]["record_uid"]
+    rows = compose_rows(group_result, field_ids=settings.table["field_ids"])
+    if dry_run:
+        return {"dry_run": True, "rows": len(rows)}
+    index = _row_index(settings, uid, runner=runner)
+    updates, missing = [], []
+    for cells in rows:
+        try:
+            cell_no = int(cells[settings.table["field_ids"]["电池序号"]])
+        except (KeyError, TypeError, ValueError):
+            continue
+        record_id = index.get(cell_no)
+        if not record_id:
+            missing.append(cell_no)
+            continue
+        updates.append({"recordId": record_id, "cells": cells})
+    result = _submit_updates(settings, updates, runner=runner)
+    return {"updated": result.get("written", 0), "missing_cells": missing,
+            "failures": result.get("failures", [])}
+
+
+def sync_void_record(settings, record_uid: str, *, runner=None,
+                     dry_run: bool = False) -> dict:
+    """作废后同步：该 UID 的全部行 → 账本状态=已作废。"""
+    if dry_run:
+        return {"dry_run": True}
+    from da_core.reconcile import _text, fetch_table_rows
+
+    field_ids = settings.table["field_ids"]
+    updates = []
+    for row in fetch_table_rows(settings, runner=runner):
+        cells = row.get("cells") or {}
+        if _text(cells.get(field_ids["账本UID"])) != record_uid:
+            continue
+        updates.append({"recordId": row.get("recordId"),
+                        "cells": {field_ids["账本状态"]: "已作废"}})
+    result = _submit_updates(settings, updates, runner=runner)
+    return {"updated": result.get("written", 0),
+            "failures": result.get("failures", [])}

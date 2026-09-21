@@ -521,6 +521,112 @@ def test_group_message_parse():
     assert extended["test_kind"] == "定期"
 
 
+def test_correct_syncs_table_rows(tmp_path):
+    import json
+
+    from da_core.service import correct_submission
+
+    settings = make_settings(tmp_path)
+    summary = submit_submission(submission_12v(), settings=settings)
+    uid = summary["groups"][0]["record_uid"]
+    fid = settings.table["field_ids"]
+
+    calls = {"updates": []}
+
+    def runner(args):
+        if args[:3] == ["aitable", "record", "query"]:
+            rows = [{"recordId": f"rec-{n}",
+                     "cells": {fid["账本UID"]: uid, fid["电池序号"]: n}}
+                    for n in range(1, 13)]
+            return 0, json.dumps({"data": {"records": rows}}, ensure_ascii=False), ""
+        if args[:2] == ["aitable", "+record-update"]:
+            calls["updates"].append(list(args))
+            return 0, '{"ok": true}', ""
+        return 1, "", f"unexpected args: {args[:3]}"
+
+    corrected_payload = {
+        "dc_system_id": "DC-003",
+        "float_voltage": 13.5,
+        "test_kind": "定期",
+        "env_temp": 25,
+        "items": [{"no": number, "volt": 13.40} for number in range(1, 13)],
+    }
+    result = correct_submission(corrected_payload, record_uid=uid, actor="李四",
+                                settings=settings, dispatch=True, runner=runner)
+
+    assert result["status"] == "ok"
+    assert result["table_sync"]["updated"] == 12
+    assert result["table_sync"]["missing_cells"] == []
+
+    args = calls["updates"][0]
+    records = json.loads(args[args.index("--records") + 1])
+    assert len(records) == 12
+    assert records[0]["recordId"] == "rec-1"
+    sample = records[0]["cells"]
+    assert sample[fid["账本Rev"]] == 2
+    assert sample[fid["账本状态"]] == "已定稿"
+    assert sample[fid["电压值(V)"]] == 13.4
+
+
+def test_void_syncs_table_status(tmp_path):
+    import json
+
+    from da_core.service import void_record
+
+    settings = make_settings(tmp_path)
+    summary = submit_submission(submission_12v(), settings=settings)
+    uid = summary["groups"][0]["record_uid"]
+    fid = settings.table["field_ids"]
+
+    calls = {"updates": []}
+
+    def runner(args):
+        if args[:3] == ["aitable", "record", "query"]:
+            rows = [{"recordId": f"rec-{n}",
+                     "cells": {fid["账本UID"]: uid, fid["电池序号"]: n}}
+                    for n in range(1, 13)]
+            return 0, json.dumps({"data": {"records": rows}}, ensure_ascii=False), ""
+        if args[:2] == ["aitable", "+record-update"]:
+            calls["updates"].append(list(args))
+            return 0, '{"ok": true}', ""
+        return 1, "", f"unexpected args: {args[:3]}"
+
+    result = void_record(uid, reason="录入错误", actor="李四", settings=settings,
+                         dispatch=True, runner=runner)
+    assert result["status"] == "ok"
+    assert result["table_sync"]["updated"] == 12
+
+    args = calls["updates"][0]
+    records = json.loads(args[args.index("--records") + 1])
+    assert all(record["cells"] == {fid["账本状态"]: "已作废"} for record in records)
+
+
+def test_correct_table_sync_failure_does_not_block_ledger(tmp_path):
+    from da_core.service import correct_submission
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    summary = submit_submission(submission_12v(), settings=settings, ledger=ledger)
+    uid = summary["groups"][0]["record_uid"]
+
+    def runner(args):
+        return 1, "", "dws down"
+
+    corrected_payload = {
+        "dc_system_id": "DC-003",
+        "float_voltage": 13.5,
+        "test_kind": "定期",
+        "env_temp": 25,
+        "items": [{"no": number, "volt": 13.40} for number in range(1, 13)],
+    }
+    result = correct_submission(corrected_payload, record_uid=uid, actor="李四",
+                                settings=settings, ledger=ledger,
+                                dispatch=True, runner=runner)
+    assert result["status"] == "ok"  # 账本事实不受同步失败影响
+    assert result["table_sync"]["ok"] is False
+    assert ledger.get_record(uid)["rev"] == 2
+
+
 MANGLED_MESSAGE = (
     "**蓄电池电压测量数据**  \n**提交时间: 2026-09-21 11:47**  \n"
     "[组别] 3号组(12只) [温度] 23 [数量] 2/12\u3000[合格区间] 13.20~13.80V "
