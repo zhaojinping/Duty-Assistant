@@ -279,3 +279,206 @@ def test_cycle_scan_and_task_sync(tmp_path):
     assert [u["state"] for u in actions["updated"]] == ["overdue"]
     current = ledger.current_task("ST001", "battery_voltage_test", "3号组(12只)")
     assert current["state"] == "overdue" and current["overdue_since"] == "2026-10-16"
+
+
+def test_outbox_deliver_receipt_and_idempotency(tmp_path):
+    from da_core import outbox
+
+    ledger = Ledger(tmp_path / "outbox.sqlite")
+    task_id = "ST001|3号组(12只)|2026-10-21"
+    ledger.insert_task(task_id=task_id, station_id="ST001", record_type="battery_voltage_test",
+                       period_key="2026-10-21", due_at="2026-10-21", state="open",
+                       overdue_since=None, opened_at="2026-09-21T10:00:00+08:00")
+
+    calls = []
+
+    def ok_runner(args):
+        calls.append(list(args))
+        return 0, '{"success": true}', ""
+
+    spec = {"task_id": task_id, "level": 1, "channel": "group",
+            "target": "APM测试", "text": "hello"}
+    first = outbox.deliver(ledger, spec, runner=ok_runner)
+    assert first["sent"] is True and len(calls) == 1
+    assert calls[0][:3] == ["chat", "+send-to-group", "--group"]
+
+    replay = outbox.deliver(ledger, spec, runner=ok_runner)
+    assert replay["sent"] is False and replay["reason"] == "already-sent"
+    assert len(calls) == 1
+
+    def bad_runner(args):
+        calls.append(list(args))
+        return 1, "", "boom"
+
+    spec2 = {"task_id": task_id, "level": 2, "channel": "group",
+             "target": "APM测试", "text": "hello2"}
+    failed = outbox.deliver(ledger, spec2, runner=bad_runner)
+    assert failed["sent"] is False
+    events = ledger.list_task_events(task_id)
+    assert events[-1]["result"] == "failed" and events[-1]["retry_count"] == 0
+
+    retried = outbox.deliver(ledger, spec2, runner=ok_runner)
+    assert retried["sent"] is True and retried["retry_count"] == 1
+
+
+def test_outbox_render_and_dual_channel(tmp_path):
+    from da_core import outbox
+
+    message = outbox.render_cycle_message(
+        group="3号组(12只)", due="2026-10-21",
+        last_done="2026-09-21T11:03:00+08:00", days_to_due=2)
+    assert "3号组(12只)" in message["text"] and "10-21" in message["text"]
+    assert message["text"].endswith("——AI助手")
+
+    ledger = Ledger(tmp_path / "dual.sqlite")
+    task = {"task_id": "ST001|x|2026-10-21", "due_at": "2026-10-21"}
+    item = {"group": "x", "last_done_at": None, "days_to_due": 2, "overdue_days": 0}
+    sent = []
+
+    def runner(args):
+        sent.append(list(args))
+        return 0, "{}", ""
+
+    results = outbox.deliver_cycle(ledger, task, item,
+                                   contacts={outbox.ROLE_GROUP: "APM测试",
+                                             outbox.ROLE_ASSIGNEE: "user123"},
+                                   level=0, runner=runner)
+    assert [r["channel"] for r in results] == ["group", "todo"]
+    assert all(r["sent"] for r in results)
+    assert len(sent) == 2 and sent[1][:2] == ["todo", "+create"]
+
+    # 未配置目标 → 如实记录 no-target，不发送
+    ledger2 = Ledger(tmp_path / "dual2.sqlite")
+    results2 = outbox.deliver_cycle(ledger2, task, item, contacts={}, level=0,
+                                    runner=runner)
+    assert all(r["sent"] is False and r["reason"] == "no-target" for r in results2)
+
+
+def test_escalation_ladder_and_dedup(tmp_path):
+    from da_core import escalation
+    from da_core.scheduler import sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-08-01", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-07-25T10:00:00+08:00")
+    ledger.set_contact("ST001", "reminder_group", "测试群")
+    ledger.set_contact("ST001", "reminder_assignee", "user1")
+    ledger.set_contact("ST001", "reminder_escalate", "班长")
+
+    calls = []
+
+    def runner(args):
+        calls.append(list(args))
+        return 0, "{}", ""
+
+    # 前3天（due 08-01，now 07-29）→ level 1：4 组 × (群+待办)
+    out = escalation.run_escalation(ledger, settings,
+                                    now="2026-07-29T10:00:00+08:00", runner=runner)
+    assert {o["level"] for o in out} == {1}
+    assert len(out) == 4
+    assert len(calls) == 8
+
+    # 幂等：同级别重跑零发送
+    calls.clear()
+    escalation.run_escalation(ledger, settings,
+                              now="2026-07-29T10:00:00+08:00", runner=runner)
+    assert calls == []
+
+    # 逾期 +3（now 08-04）→ level 4：群+待办+升级 DM
+    calls.clear()
+    out = escalation.run_escalation(ledger, settings,
+                                    now="2026-08-04T10:00:00+08:00", runner=runner)
+    assert {o["level"] for o in out} == {4}
+    dm_calls = [call for call in calls if call[:2] == ["chat", "+dm"]]
+    assert len(dm_calls) == 4
+    assert len(calls) == 12
+
+
+def test_compute_stage_month_end():
+    import datetime as dt
+
+    from da_core import escalation
+
+    item = {"next_due": "2026-08-01", "overdue_days": 30, "days_to_due": -30}
+    assert escalation.compute_stage(item, dt.date(2026, 8, 31)) == 6
+    assert escalation.compute_stage(item, dt.date(2026, 8, 25)) == 5
+    item3 = {"next_due": "2026-08-01", "overdue_days": 2, "days_to_due": -2}
+    assert escalation.compute_stage(item3, dt.date(2026, 8, 3)) == 3
+    item4 = {"next_due": "2026-08-01", "overdue_days": 0, "days_to_due": 0}
+    assert escalation.compute_stage(item4, dt.date(2026, 8, 1)) == 2
+    item5 = {"next_due": None, "overdue_days": 0, "days_to_due": None}
+    assert escalation.compute_stage(item5, dt.date(2026, 8, 1)) is None
+
+
+def test_deferral_shifts_effective_due(tmp_path):
+    from da_core.scheduler import scan, sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-08-01", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-07-25T10:00:00+08:00")
+
+    task_id = "ST001|3号组(12只)|2026-08-01"
+    ledger.insert_deferral(deferral_id="d1", task_id=task_id, reason="现场检修不可用",
+                           approved_by="班长", until_at="2026-08-10")
+
+    report = scan(ledger, settings, now="2026-08-05T10:00:00+08:00")
+    three = next(g for g in report["groups"] if g["group"] == "3号组(12只)")
+    assert three["status"] == "deferred"
+    assert three["deferred_until"] == "2026-08-10"
+    assert three["overdue_days"] == 0
+    assert three["next_due"] == "2026-08-01"  # 锚点真值不变
+
+    # 延期过期 → 恢复逾期（从延期日算起）
+    report2 = scan(ledger, settings, now="2026-08-15T10:00:00+08:00")
+    three2 = next(g for g in report2["groups"] if g["group"] == "3号组(12只)")
+    assert three2["overdue_days"] == 5
+    assert three2["status"] == "overdue"
+
+
+def test_reconcile_table_vs_ledger(tmp_path):
+    from da_core import reconcile as reconcile_mod
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    summary = submit_submission(submission_12v(), settings=settings, ledger=ledger)
+    uid = summary["groups"][0]["record_uid"]
+    field_ids = settings.table["field_ids"]
+
+    voltages = {number: round(13.30 + number * 0.01, 2) for number in range(1, 12)}
+    voltages[12] = 13.95
+
+    def build_rows(*, volt_override=None, drop_cell=None, uid_value=uid):
+        rows = []
+        for number, volt in voltages.items():
+            if drop_cell == number:
+                continue
+            value = volt_override if (volt_override is not None and number == 12) else volt
+            rows.append({"recordId": f"rec{number}", "cells": {
+                field_ids["账本UID"]: uid_value,
+                field_ids["账本Rev"]: 1,
+                field_ids["账本状态"]: "已定稿",
+                field_ids["电池序号"]: number,
+                field_ids["电压值(V)"]: value,
+            }})
+        return rows
+
+    ok = reconcile_mod.reconcile(ledger, settings, table_rows=build_rows())
+    assert ok["ok"] is True and ok["diffs"] == [] and ok["ledger_records"] == 1
+
+    drifted = reconcile_mod.reconcile(ledger, settings,
+                                      table_rows=build_rows(volt_override=9.9))
+    assert drifted["ok"] is False
+    assert any(diff["kind"] == "voltage" for diff in drifted["diffs"])
+
+    short = reconcile_mod.reconcile(ledger, settings, table_rows=build_rows(drop_cell=12))
+    assert any(diff["kind"] == "row-count" for diff in short["diffs"])
+
+    orphan = reconcile_mod.reconcile(ledger, settings, table_rows=[
+        {"recordId": "ghost", "cells": {field_ids["账本UID"]: "GHOST-UID",
+                                        field_ids["账本Rev"]: 1,
+                                        field_ids["账本状态"]: "已定稿"}}])
+    assert any(diff["kind"] == "orphan-rows" for diff in orphan["diffs"])

@@ -14,7 +14,8 @@ SECRET_NAME_PARTS = {'key', 'token', 'secret', 'password', 'passwd', 'pwd', 'cre
 # Declarative-DSL property names that are field identifiers, not credentials.
 # Matching these bare-word keys in .md/.toml/.json samples is a false positive:
 # the value is always a registry field name (e.g. key = "test_kind").
-DSL_KEY_NAMES = {'key', 'key_field', 'apikey_placeholder'}
+# period_key 同理：任务台账的窗口键字段（如 period_key="2026-10-21"）。
+DSL_KEY_NAMES = {'key', 'key_field', 'apikey_placeholder', 'period_key'}
 PLACEHOLDER_EXACT = {'example', 'sample', 'placeholder', 'dummy', 'synthetic', 'fake',
                      'demo', 'changeme', 'todo', 'password', 'secret', 'token', 'value'}
 PLACEHOLDER_PATTERNS = (

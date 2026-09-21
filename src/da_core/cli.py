@@ -72,6 +72,38 @@ def main(argv: list[str] | None = None) -> int:
     scan_cmd.add_argument("--sync", action="store_true", help="同步 tasks 台账（写）")
     scan_cmd.add_argument("--now", default=None, help="模拟时刻（RFC3339，联调用）")
 
+    notify_cmd = commands.add_parser("notify", help="按任务当前状态触达（联调/运维入口）")
+    notify_cmd.add_argument("--task-id", default=None, help="指定任务；缺省=全部在办任务")
+    _add_station_args(notify_cmd)
+    notify_cmd.add_argument("--level", type=int, default=0, help="触达级别（幂等键组成）")
+    notify_cmd.add_argument("--dry-run", action="store_true", help="只组装不发送")
+
+    contacts_cmd = commands.add_parser("contacts", help="触达目标（联系人）配置")
+    contacts_cmd.add_argument("--db", required=True)
+    contacts_cmd.add_argument("--station-id", required=True)
+    contacts_cmd.add_argument("--set", default=None, metavar="ROLE=TARGET",
+                              help="设置角色目标：reminder_group / reminder_assignee / reminder_escalate")
+
+    defer_cmd = commands.add_parser("defer", help="登记延期（班长批）：截止日顺延")
+    defer_cmd.add_argument("--task-id", required=True)
+    defer_cmd.add_argument("--until", required=True, help="延期至（YYYY-MM-DD）")
+    defer_cmd.add_argument("--reason", required=True)
+    defer_cmd.add_argument("--approved-by", required=True)
+    defer_cmd.add_argument("--db", required=True)
+
+    escalate_cmd = commands.add_parser("escalate", help="按升级链执行触达（幂等）")
+    _add_station_args(escalate_cmd)
+    escalate_cmd.add_argument("--now", default=None, help="模拟时刻（RFC3339，联调用）")
+    escalate_cmd.add_argument("--dry-run", action="store_true")
+
+    reconcile_cmd = commands.add_parser("reconcile", help="表↔账本对账（只读）")
+    _add_station_args(reconcile_cmd)
+
+    cycle_cmd = commands.add_parser("cycle", help="周期配置（cycle_days / baseline）")
+    cycle_cmd.add_argument("--db", required=True)
+    cycle_cmd.add_argument("--set-baseline", default=None, help="起算日 YYYY-MM-DD")
+    cycle_cmd.add_argument("--set-cycle-days", type=int, default=None)
+
     inspect = commands.add_parser("inspect", help="账本概览")
     inspect.add_argument("--db", required=True)
 
@@ -110,6 +142,82 @@ def main(argv: list[str] | None = None) -> int:
         else:
             result = scan_cycles(ledger, settings, now=args.now)
         print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "notify":
+        from da_core import outbox
+        from da_core.scheduler import scan as scan_cycles
+
+        settings = _settings_from_args(args)
+        ledger = Ledger(settings.db_path)
+        ledger.seed_config(settings)
+        contacts = ledger.get_contacts(settings.station["station_id"])
+        report = scan_cycles(ledger, settings)
+        items = {item["group"]: item for item in report["groups"]}
+        tasks = ledger.list_tasks(settings.station["station_id"], states=("open", "overdue"))
+        if args.task_id:
+            tasks = [task for task in tasks if task["task_id"] == args.task_id]
+        results = []
+        for task in tasks:
+            group_label = task["task_id"].split("|")[1]
+            item = items.get(group_label) or {"group": group_label, "overdue_days": 0}
+            results.append({
+                "task_id": task["task_id"],
+                "channels": outbox.deliver_cycle(ledger, task, item, contacts=contacts,
+                                                 level=args.level, dry_run=args.dry_run),
+            })
+        print(json.dumps({"contacts": sorted(contacts), "sent": results},
+                         ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "contacts":
+        ledger = Ledger(args.db)
+        if args.set:
+            role, _, target = args.set.partition("=")
+            if not target.strip():
+                raise SystemExit("格式：--set role=target（如 --set reminder_group=APM测试）")
+            ledger.set_contact(args.station_id, role.strip(), target.strip(), updated_by="cli")
+        print(json.dumps(ledger.get_contacts(args.station_id), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "defer":
+        ledger = Ledger(args.db)
+        deferral_id = f"{args.task_id}~{args.until}"
+        ledger.insert_deferral(deferral_id=deferral_id, task_id=args.task_id,
+                               reason=args.reason, approved_by=args.approved_by,
+                               until_at=args.until)
+        print(json.dumps({"deferred": deferral_id, "until": args.until,
+                          "approved_by": args.approved_by}, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "escalate":
+        from da_core.escalation import run_escalation
+
+        settings = _settings_from_args(args)
+        ledger = Ledger(settings.db_path)
+        ledger.seed_config(settings)
+        result = run_escalation(ledger, settings, now=args.now, dry_run=args.dry_run)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "reconcile":
+        from da_core.reconcile import reconcile
+
+        settings = _settings_from_args(args)
+        ledger = Ledger(settings.db_path)
+        print(json.dumps(reconcile(ledger, settings), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "cycle":
+        ledger = Ledger(args.db)
+        current = ledger.get_cycle_config()
+        if args.set_baseline is not None or args.set_cycle_days is not None:
+            ledger.set_cycle_config(
+                cycle_days=args.set_cycle_days or int(current.get("cycle_days") or 30),
+                baseline=(args.set_baseline if args.set_baseline is not None
+                          else current.get("baseline")),
+                updated_by="cli")
+        print(json.dumps(ledger.get_cycle_config(), ensure_ascii=False, indent=2))
         return 0
 
     if args.command == "inspect":

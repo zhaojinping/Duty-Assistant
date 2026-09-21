@@ -89,7 +89,8 @@ CREATE TABLE IF NOT EXISTS task_events (
   sent_at     TEXT,
   ack_at      TEXT,
   result      TEXT,
-  retry_count INTEGER NOT NULL DEFAULT 0
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  detail      TEXT
 );
 CREATE TABLE IF NOT EXISTS deferrals (
   deferral_id TEXT PRIMARY KEY,
@@ -176,11 +177,13 @@ class Ledger:
         self.conn.commit()
 
     def _ensure_columns(self) -> None:
-        """轻量迁移：为存量库补新列（records.scope / records.group_label）。"""
-        existing = {row["name"] for row in self.conn.execute("PRAGMA table_info(records)")}
-        for name in ("scope", "group_label"):
-            if name not in existing:
-                self.conn.execute(f"ALTER TABLE records ADD COLUMN {name} TEXT")
+        """轻量迁移：为存量库补新列。"""
+        wanted = {"records": ("scope", "group_label"), "task_events": ("detail",)}
+        for table, columns in wanted.items():
+            existing = {row["name"] for row in self.conn.execute(f"PRAGMA table_info({table})")}
+            for name in columns:
+                if name not in existing:
+                    self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} TEXT")
 
     def close(self) -> None:
         self.conn.close()
@@ -319,6 +322,82 @@ class Ledger:
             params.extend(states)
         sql += " ORDER BY due_at, task_id"
         return [dict(row) for row in self.conn.execute(sql, params)]
+
+    # ── 触达回执（task_events）与联系人 ─────────────────────────────
+
+    def record_task_event(self, *, task_id: str, level: int, channel: str,
+                          target: str, result: str, detail: str | None = None,
+                          retry_count: int = 0) -> dict:
+        cursor = self.conn.execute(
+            "INSERT INTO task_events(task_id, level, channel, target, sent_at, result, "
+            "retry_count, detail) VALUES(?,?,?,?,?,?,?,?)",
+            (task_id, level, channel, target, iso_now(), result, retry_count, detail),
+        )
+        self.conn.commit()
+        return {"event_id": cursor.lastrowid, "task_id": task_id, "level": level,
+                "channel": channel, "target": target, "result": result,
+                "retry_count": retry_count, "detail": detail}
+
+    def find_task_event(self, task_id: str, level: int, channel: str) -> dict | None:
+        """同 (task, level, channel) 的最新一次投递记录（幂等/重试依据）。"""
+        row = self.conn.execute(
+            "SELECT * FROM task_events WHERE task_id=? AND level=? AND channel=? "
+            "ORDER BY event_id DESC LIMIT 1",
+            (task_id, level, channel),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def list_task_events(self, task_id: str | None = None, *,
+                         limit: int = 100) -> list[dict]:
+        if task_id:
+            rows = self.conn.execute(
+                "SELECT * FROM task_events WHERE task_id=? ORDER BY event_id", (task_id,))
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM task_events ORDER BY event_id DESC LIMIT ?", (limit,))
+        return [dict(row) for row in rows]
+
+    def set_contact(self, station_id: str, role: str, target: str, *,
+                    updated_by: str = "") -> None:
+        self.conn.execute(
+            "INSERT INTO config_contacts(station_id, role, target, updated_at) "
+            "VALUES(?,?,?,?) ON CONFLICT(station_id, role) DO UPDATE SET "
+            "target=excluded.target, updated_at=excluded.updated_at",
+            (station_id, role, target, iso_now()),
+        )
+        self.audit(updated_by or "core", "contact_change", f"{station_id}:{role}",
+                   {"target": target})
+        self.conn.commit()
+
+    def get_contacts(self, station_id: str) -> dict:
+        return {
+            row["role"]: row["target"]
+            for row in self.conn.execute(
+                "SELECT role, target FROM config_contacts WHERE station_id=?",
+                (station_id,))
+        }
+
+    # ── 延期（班长批） ──────────────────────────────────────────────
+
+    def insert_deferral(self, *, deferral_id: str, task_id: str, reason: str,
+                        approved_by: str, until_at: str) -> None:
+        self.conn.execute(
+            "INSERT OR REPLACE INTO deferrals(deferral_id, task_id, reason, approved_by, "
+            "until_at, created_at) VALUES(?,?,?,?,?,?)",
+            (deferral_id, task_id, reason, approved_by, until_at, iso_now()),
+        )
+        self.audit(approved_by or "core", "deferral", task_id,
+                   {"until": until_at, "reason": reason})
+        self.conn.commit()
+
+    def latest_deferral(self, station_id: str, group_label: str, due: str) -> str | None:
+        """该组当期任务的最新延期至（含已过期——口径顺延仍按延期日算）；无则 None。"""
+        row = self.conn.execute(
+            "SELECT until_at FROM deferrals WHERE task_id=? "
+            "ORDER BY created_at DESC, deferral_id DESC LIMIT 1",
+            (f"{station_id}|{group_label}|{due}",),
+        ).fetchone()
+        return row["until_at"] if row else None
 
     # ── 序号：含墓碑的完整视图 ───────────────────────────────────────
 
