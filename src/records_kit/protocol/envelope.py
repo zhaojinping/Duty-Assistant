@@ -96,7 +96,8 @@ def check_envelope(envelope: object) -> None:
 
     if operation in SUBJECT_OPERATIONS:
         if operation in ("confirm",):
-            if not isinstance(envelope.get("confirmations"), list) or not envelope["confirmations"]:
+            # 签认列表必带；可为空（无签认槽位类型零签认，槽位完整性由生命周期层按声明判定）
+            if not isinstance(envelope.get("confirmations"), list):
                 raise reject("confirmations", E_REQUIRED, "confirm 必须带签认列表")
         if operation == "return" and not isinstance(envelope.get("return_reason"), str):
             raise reject("return_reason", E_REQUIRED, "return 必须带退回原因")

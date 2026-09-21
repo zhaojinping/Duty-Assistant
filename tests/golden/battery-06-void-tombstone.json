@@ -28,7 +28,7 @@
   },
   "expect": {
     "status": "ok",
-    "record": { "rev": 1, "lifecycle": "voided", "signature_slots": [{ "slot": "测试人", "state": "signed" }] },
+    "record": { "rev": 1, "lifecycle": "voided", "signature_slots": [] },
     "rules": [{ "rule_id": "voltage_band", "verdict": "pass" }],
     "alarm_state": { "state": null, "suppressed": false },
     "cycle": null

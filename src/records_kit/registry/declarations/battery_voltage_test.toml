@@ -12,7 +12,7 @@ layout = "item_list"                 # 表单式：顶部记录级字段 + 下�
 dedupe_key = ["station", "occurred_day", "test_kind", "dc_system_id"]   # dc_system_id：同日同站多组测试判重隔离（2026-09-21 拍板）
 link_types = ["retest_of"]           # 复测值列的复测链落点
 extra = "reject"                     # 未知字段默认拒绝
-signature_slots = ["测试人"]          # 只读留白，人签（铁律 7）
+signature_slots = []                  # 免签类型（2026-09-21 定案）：零签认 confirm，提交后服务自动定稿；签名能力保留其他类型
 action_codes = ["MARK_LAGGING_CELL", "RETEST_CELL"]
 escalate_after = 3
 
@@ -113,7 +113,7 @@ id = "voltage_band"
 kind = "limit"
 tier = 1
 target = "items.voltage"
-expr = "band:2.00,2.30"              # 上限按现场口径 2.30（2026-09-21 拍板；原主设样例 2.25）
+expr = "band:1.85,2.35"              # 默认口径（2V 单体，2026-09-21 定案）；12V 组由部署配置注入覆盖（11.85–13.80）
 level = "warn"
 
 [[rules]]

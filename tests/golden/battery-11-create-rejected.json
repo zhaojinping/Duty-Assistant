@@ -1,7 +1,7 @@
 {
   "name": "battery-create-rejected",
   "record_type": "battery_voltage_test",
-  "note": "合成样本（synthetic）：负样本 —— 单体电压越物理上限 + 未声明字段 + 单只条目尝试填签字栏，三类错误结构化返回（壳层无需 try/except）",
+  "note": "合成样本（synthetic）：负样本 —— 单体电压越物理上限 + 未声明字段 + 单只条目尝试携带签字信息，三类错误结构化返回（壳层无需 try/except）",
   "envelope": {
     "protocol": "records-kit",
     "protocol_version": "1.5",
@@ -17,7 +17,7 @@
       "float_voltage": 241.5,
       "test_kind": "定期",
       "unexpected_column": 1,
-      "items": [{ "cell_no": 1, "voltage": 99.0, "测试人": "李四" }]
+      "items": [{ "cell_no": 1, "voltage": 99.0, "signed_by": "李四" }]
     }
   },
   "expect": {
@@ -26,7 +26,7 @@
     "errors": [
       { "code": "E_UNKNOWN_FIELD", "path": "payload.unexpected_column" },
       { "code": "E_RANGE", "path": "payload.items[0].voltage" },
-      { "code": "E_SIGNATURE_VIOLATION", "path": "payload.items[0].测试人" }
+      { "code": "E_SIGNATURE_VIOLATION", "path": "payload.items[0].signed_by" }
     ],
     "cycle": null
   }

@@ -89,7 +89,7 @@ def test_bundled_battery_declaration_shape(declaration):
     assert declaration.dedupe_key == ("station", "occurred_day", "test_kind", "dc_system_id")
     assert declaration.link_types == ("retest_of",)
     assert declaration.extra == "reject"
-    assert declaration.signature_slots == ("测试人",)
+    assert declaration.signature_slots == ()
     assert declaration.action_codes == ("MARK_LAGGING_CELL", "RETEST_CELL")
     assert declaration.escalate_after == 3
     assert [spec.key for spec in declaration.fields] == [
@@ -174,7 +174,7 @@ def test_flat_declaration_without_items_loads(synthetic_registry):
         ({"meta": {"dedupe_key": []}}, "meta.dedupe_key"),
         ({"meta": {"dedupe_key": ["station", "nope"]}}, "meta.dedupe_key 引用不存在的字段"),
         ({"meta": {"link_types": ["whatever"]}}, "meta.link_types"),
-        ({"meta": {"signature_slots": []}}, "meta.signature_slots"),
+        ({"meta": {"signature_slots": "测试人"}}, "meta.signature_slots"),
         ({"meta": {"action_codes": [1]}}, "meta.action_codes"),
         ({"meta": {"escalate_after": 1}}, "meta.escalate_after"),
         ({"fields": [{"key": "x", "name": "X", "type": "matrix"}]}, "type 必须是"),

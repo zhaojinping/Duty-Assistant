@@ -1,7 +1,7 @@
 {
   "name": "battery-correct-confirmed-supersede",
   "record_type": "battery_voltage_test",
-  "note": "合成样本（synthetic）：confirmed 上的定稿更正 —— 新版回 draft、rev+1、自动加 supersedes 指向前版、须重新签认",
+  "note": "合成样本（synthetic）：confirmed 上的定稿更正 —— 新版回 draft、rev+1、自动加 supersedes 指向前版（免签类型：零签认，壳层自动重新定稿）",
   "envelope": {
     "protocol": "records-kit",
     "protocol_version": "1.5",
@@ -43,7 +43,7 @@
       "rev": 2,
       "lifecycle": "draft",
       "links": [{ "type": "supersedes", "record_uid": "ST001-battery_voltage_test-20260917-1000-1" }],
-      "signature_slots": [{ "slot": "测试人", "state": "pending" }]
+      "signature_slots": []
     },
     "rules": [{ "rule_id": "voltage_band", "verdict": "pass" }],
     "alarm_state": { "state": null, "suppressed": false },

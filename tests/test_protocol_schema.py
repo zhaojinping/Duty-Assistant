@@ -110,7 +110,7 @@ def test_ok_results_pass_result_schema(helpers):
         helpers.envelope(
             "confirm",
             subject=helpers.subject(record),
-            confirmations=[helpers.confirmation()],
+            confirmations=[],
             ledger_view=helpers.ledger_view([helpers.ledger_row(record["record_uid"], digest=record["digest"])]),
         ),
         registry,
