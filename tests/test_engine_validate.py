@@ -29,9 +29,9 @@ BAD_PAYLOADS = [
     ({"items": [{"cell_no": 1, "voltage": 2.0, "extra": 1}]}, "E_UNKNOWN_FIELD", "payload.items[0].extra"),
     ({"items": [{"cell_no": 1, "voltage": 2.0}, {"cell_no": 1, "voltage": 2.1}]}, "E_DUP_KEY", "payload.items[1].cell_no"),
     ({"items": [{"cell_no": 1, "voltage": 2.0, "lagging": "大概"}]}, "E_ENUM", "payload.items[0].lagging"),
-    ({"测试人": "李四"}, "E_SIGNATURE_VIOLATION", "payload.测试人"),
+    ({"signed_by": "李四"}, "E_SIGNATURE_VIOLATION", "payload.signed_by"),
     ({"confirmations": []}, "E_SIGNATURE_VIOLATION", "payload.confirmations"),
-    ({"items": [{"cell_no": 1, "voltage": 2.0, "测试人": "李四"}]}, "E_SIGNATURE_VIOLATION", "payload.items[0].测试人"),
+    ({"items": [{"cell_no": 1, "voltage": 2.0, "signatures": [{"by": "李四"}]}]}, "E_SIGNATURE_VIOLATION", "payload.items[0].signatures"),
 ]
 
 
@@ -42,6 +42,19 @@ def test_bad_payloads_are_rejected(helpers, patch, code, path):
     assert result["status"] == "rejected"
     codes = {(error["code"], error["path"]) for error in result["validation"]["errors"]}
     assert (code, path) in codes, codes
+
+
+def test_declared_slot_attempt_rejected_on_slotted_declaration(synthetic_registry, helpers):
+    """有签认槽位的声明：把槽位名塞进 payload 仍被拒（防代签护栏随声明生效）。"""
+    registry = synthetic_registry()  # 默认合成声明含签认槽「测试人」
+    envelope = helpers.envelope(
+        "create", record_type="synthetic_record", payload=helpers.battery_payload(测试人="李四")
+    )
+    result = records_kit.process(envelope, registry)
+    assert result["status"] == "rejected"
+    assert ("E_SIGNATURE_VIOLATION", "payload.测试人") in {
+        (error["code"], error["path"]) for error in result["validation"]["errors"]
+    }
 
 
 def test_payload_optional_fields_may_be_absent(helpers):

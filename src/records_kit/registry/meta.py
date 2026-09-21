@@ -673,8 +673,8 @@ def validate_declaration(raw: object, source: str = "<declaration>") -> Declarat
         raw_links = []
 
     raw_slots = meta.get("signature_slots")
-    if not isinstance(raw_slots, list) or not raw_slots or not all(isinstance(s, str) and s for s in raw_slots):
-        problems.add("meta.signature_slots 必须是非空字符串数组")
+    if not isinstance(raw_slots, list) or not all(isinstance(s, str) and s for s in raw_slots):
+        problems.add("meta.signature_slots 必须是字符串数组（免签类型写空数组）")
         raw_slots = []
 
     raw_actions = meta.get("action_codes")

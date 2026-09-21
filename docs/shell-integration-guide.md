@@ -241,6 +241,7 @@ status=ok：
 
 > 素材：main `e3ae21c8` 全量实跑，合成数据；`fields` 块在节选中以下划线标注省略，其余值为**原样实测**。
 > 另注：`lagging_detect` 的 detail 文案（"偏差 6.25% ≤ 5.0%"）为现行实现的展示文本，判为越界系偏差绝对值超阈值——**文本口径小瑕疵已知，不影响判定**，后续修订统一。
+> 2026-09-21 修订 D 复测：§8.1 电压带 `threshold`/`detail` 与 §8.3 判重报文已按新声明（`band:2.00,2.30`；判重键含 `dc_system_id`）更新；指纹与 digest 不受口径影响（已复算核对 `fp:13da…`）。
 
 ### 8.1 create → confirm → cycle_probe（最小闭环）
 
@@ -261,11 +262,11 @@ status=ok：
   },
   "rules": [
     { "rule_id": "voltage_band", "kind": "limit", "tier": 1, "verdict": "pass",
-      "threshold": "band:2.00,2.25", "level": "info",
-      "detail": "条目 cell_no=1 取值 2.21，带 [2.0, 2.25]：通过" },
+      "threshold": "band:2.00,2.30", "level": "info",
+      "detail": "条目 cell_no=1 取值 2.21，带 [2.0, 2.3]：通过" },
     { "rule_id": "voltage_band", "kind": "limit", "tier": 1, "verdict": "violation",
-      "threshold": "band:2.00,2.25", "level": "warn",
-      "detail": "条目 cell_no=2 取值 1.95，带 [2.0, 2.25]：越界" },
+      "threshold": "band:2.00,2.30", "level": "warn",
+      "detail": "条目 cell_no=2 取值 1.95，带 [2.0, 2.3]：越界" },
     { "rule_id": "lagging_detect", "kind": "limit", "tier": 2, "verdict": "violation",
       "threshold": "deviation:mean,5%", "level": "alarm",
       "detail": "条目 cell_no=1 取值 2.21，基准 mean=2.08，偏差 6.25% ≤ 5.0%：越界" }
@@ -320,7 +321,7 @@ status=ok：
 
 ```jsonc
 { "path": "payload", "code": "E_DUP_KEY",
-  "message": "业务判重命中（station+occurred_day+test_kind）" }
+  "message": "业务判重命中（station+occurred_day+test_kind+dc_system_id）" }
 ```
 
 （业务判重先于 digest 判重命中；幂等重放场景按 `confirmed_digests` 走 `E_DUP_DIGEST`。）

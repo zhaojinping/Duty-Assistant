@@ -25,7 +25,7 @@ def test_generated_schema_shape(declaration):
     assert schema["x-record-type"] == "battery_voltage_test"
     assert schema["x-schema-version"] == "1.5"
     assert schema["x-layout"] == "item_list"
-    assert schema["x-dedupe-key"] == ["station", "occurred_day", "test_kind"]
+    assert schema["x-dedupe-key"] == ["station", "occurred_day", "test_kind", "dc_system_id"]
     assert schema["required"] == ["dc_system_id", "float_voltage", "test_kind", "items"]
     voltage = schema["properties"]["items"]["items"]["properties"]["voltage"]
     assert voltage == {"type": "number", "minimum": 0.0, "maximum": 15.0, "x-unit": "V", "title": "单体电压"}

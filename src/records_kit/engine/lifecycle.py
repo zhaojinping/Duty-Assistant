@@ -128,7 +128,7 @@ def _confirm(envelope: dict, declaration, ledger_view: dict) -> LifecycleResult:
         raise reject("subject.lifecycle", E_STATE_ILLEGAL, "confirm 仅适用于 draft 记录")
 
     confirmations = envelope.get("confirmations") or []
-    if not isinstance(confirmations, list) or not confirmations:
+    if not isinstance(confirmations, list) or (not confirmations and declaration.signature_slots):
         raise reject("confirmations", E_REQUIRED, "confirm 必须带签认列表")
     signed: dict[str, dict] = {}
     for index, item in enumerate(confirmations):

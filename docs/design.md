@@ -15,6 +15,10 @@
 
 > **修订 C（2026-09-20，M2 收口同步）**：文法扩展终稿（PR #29）与 trend 口径拍板（#28 评论）并入：§7.3（`when` 值侧前缀微文法 + `kind="condition"` + `monotonic` 算子 + trend 口径）、§7.4 避雷器/跳闸行、§12 待定项收敛。受影响条款：§7.3 四行、§7.4 两行、§12 两条。
 
+> **修订 D（2026-09-21，对接现场表拍板）**：蓄电池与现场录入表（钉钉 AI 表格「电压测量记录」）对接口径并入：① §7.2 样例 `dedupe_key` 纳入 `dc_system_id`（同日同站多组测试不再互撞业务判重）；② 电压带上限 2.25 → **2.30**（按现场口径；原值为主设样例）。受影响条款：§7.2 两行。
+
+> **修订 E（2026-09-21，P1 改造定案）**：① 蓄电池类**免签**：`signature_slots` 置空；协议/生命周期/元校验三处容错——**无槽位声明**允许空签认 confirm（有槽位类型语义不变），提交后由壳层自动定稿。② `voltage_band` 默认值定为 **1.85–2.35**（2V 单体口径；12V 组 11.85–13.80 由部署配置注入覆盖），取代修订 D 的 2.30 过渡口径。受影响条款：§7.2 两行、§8.1 confirm/correct 行。
+
 ## 1. 背景与目标
 
 围绕 **10 类**运行值班记录（断路器跳闸、避雷器动作、接地线装拆、两票登记、设备测温、绝缘测试、蓄电池电压测试、主变铁芯夹件电流测试、保护投退、防小动物检查），构建一个**全新、独立**的工具包。
@@ -182,10 +186,10 @@ record_type = "battery_voltage_test"
 title = "蓄电池电压测试记录簿"
 schema_version = "1.5"
 layout = "item_list"                # flat(横表台账) | item_list(逐条测量)
-dedupe_key = ["station", "occurred_day", "test_kind"]
+dedupe_key = ["station", "occurred_day", "test_kind", "dc_system_id"]
 link_types = ["retest_of"]
 extra = "reject"                    # 未知字段处理：reject(默认) | allow
-signature_slots = ["测试人"]         # 多槽位=多人签认
+signature_slots = []                 # 免签类型置空：零签认 confirm（壳层自动定稿）
 action_codes = ["MARK_LAGGING_CELL", "RETEST_CELL"]
 escalate_after = 3                  # 同指纹告警未处置N次后升级
 
@@ -240,7 +244,7 @@ id = "voltage_band"
 kind = "limit"
 tier = 1
 target = "items.voltage"
-expr = "band:2.00,2.25"
+expr = "band:1.85,2.35"             # 默认口径（2V 单体）；12V 组由部署配置注入覆盖
 level = "warn"
 
 [[rules]]
@@ -328,9 +332,9 @@ alarm_ack：适用于任意非 voided 记录；不改 fields、不加 rev（告�
 | 操作 | 前置状态 | 关键约束 |
 |---|---|---|
 | `create` | — | 生成 uid（含 create_seq），rev=1；业务判重 → `E_DUP_KEY`；uid 重复 → `E_DUP_UID` |
-| `confirm` | draft | `confirmations` 覆盖全部 `signature_slots`；未签齐 → `E_STATE_ILLEGAL`；签齐冻结当版 fields+digest |
+| `confirm` | draft | `confirmations` 覆盖全部 `signature_slots`（**无签认槽位类型零签认即可**）；未签齐 → `E_STATE_ILLEGAL`；签齐冻结当版 fields+digest |
 | `return` | draft | 退回重编：记 return_reason 留痕；rev 不变，配合 **correct(draft)** 完成修改后再 confirm |
-| `correct` | **draft 或 confirmed（双语义）** | **draft 上调用**=编辑修订：rev+1、仍 draft、不加 supersedes（前版未定稿无可"更正"）；**confirmed 上调用**=定稿更正：原记录保持 confirmed，生成 rev+1、回 draft 的新版本（自动加 `supersedes` 指向前版），须重新签认。**两种语义下若改动触及 `dedupe_key` 字段，须对非 voided 视图重判业务判重（排除自身），命中 → `E_DUP_KEY`** |
+| `correct` | **draft 或 confirmed（双语义）** | **draft 上调用**=编辑修订：rev+1、仍 draft、不加 supersedes（前版未定稿无可"更正"）；**confirmed 上调用**=定稿更正：原记录保持 confirmed，生成 rev+1、回 draft 的新版本（自动加 `supersedes` 指向前版），须重新签认（无槽位类型由壳层自动重新定稿）。**两种语义下若改动触及 `dedupe_key` 字段，须对非 voided 视图重判业务判重（排除自身），命中 → `E_DUP_KEY`** |
 | `void` | draft / confirmed（archived 禁 void，走壳层冲正） | 记 void_reason、voided_by，voided_at 取 now；墓碑保留不可删，**uid/seq 永久占号** |
 | `archive` | confirmed | 必带 `archive_ref`/`archived_by` → archived；**correct 并存窗口内的目标版本口径见 §8.3（随 M0 定）** |
 | `alarm_ack` | 任意非 voided | 告警处置回执（§6.2），不改 fields、不加 rev |

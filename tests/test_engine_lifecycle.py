@@ -54,7 +54,7 @@ def test_create_assembles_uid_rev_digest(helpers):
     assert record["rev"] == 1
     assert record["lifecycle"] == "draft"
     assert record["digest"].startswith("sha256:") and len(record["digest"]) == 71
-    assert record["signature_slots"] == [{"slot": "测试人", "state": "pending"}]
+    assert record["signature_slots"] == []
     assert record["links"] == []
     expected = compute_digest("ST001", BATTERY, helpers.OCCURRED, "1.5", helpers.battery_payload())
     assert record["digest"] == expected
@@ -101,7 +101,7 @@ def test_confirm_freezes_the_version(helpers):
         helpers,
         "confirm",
         subject=helpers.subject(record),
-        confirmations=[helpers.confirmation()],
+        confirmations=[],
         ledger_view=helpers.ledger_view([row_of(record)]),
     )
     assert result["status"] == "ok", result["validation"]
@@ -109,9 +109,46 @@ def test_confirm_freezes_the_version(helpers):
     assert confirmed["lifecycle"] == "confirmed"
     assert confirmed["rev"] == record["rev"]
     assert confirmed["digest"] == record["digest"]
-    assert confirmed["signature_slots"] == [
-        {"slot": "测试人", "state": "signed", "by": helpers.SYNTHETIC_TESTER, "at": helpers.NOW}
-    ]
+    assert confirmed["signature_slots"] == []
+
+
+def test_confirm_zero_slot_type_accepts_empty_confirmations(helpers, synthetic_registry):
+    """免签类型（无签认槽位）：空签认列表放行且提交即定稿（2026-09-21 免签改造·修订 E）。"""
+    registry = synthetic_registry(helpers.build_toml(meta={"signature_slots": []}))
+    payload = helpers.battery_payload()
+    payload.pop("dc_system_id")
+    payload.pop("float_current")
+    create = records_kit.process(
+        helpers.envelope("create", record_type="synthetic_record", payload=payload), registry
+    )
+    assert create["status"] == "ok", create["validation"]
+    record = create["record"]
+    assert record["signature_slots"] == []
+
+    view = helpers.ledger_view([helpers.ledger_row(record["record_uid"], digest=record["digest"])])
+    confirm = records_kit.process(
+        helpers.envelope(
+            "confirm", record_type="synthetic_record",
+            subject=helpers.subject(record), confirmations=[], ledger_view=view,
+        ),
+        registry,
+    )
+    assert confirm["status"] == "ok", confirm["validation"]
+    assert confirm["record"]["lifecycle"] == "confirmed"
+    assert confirm["record"]["signature_slots"] == []
+
+    # 无槽位类型：多余的签认项（未知签字槽）仍被拒
+    stray = records_kit.process(
+        helpers.envelope(
+            "confirm",
+            record_type="synthetic_record",
+            subject=helpers.subject(record),
+            confirmations=[{"slot": "测试人", "by": "李四", "at": helpers.NOW}],
+            ledger_view=view,
+        ),
+        registry,
+    )
+    assert ("E_STATE_ILLEGAL", "confirmations[0].slot") in codes(stray)
 
 
 @pytest.mark.parametrize(
@@ -131,14 +168,26 @@ def test_confirm_freezes_the_version(helpers):
         ([{"slot": "测试人", "by": "李四", "at": "2026-09-17"}], "E_TIME_INVALID", "confirmations[0].at"),
     ],
 )
-def test_bad_confirmations_are_rejected(helpers, confirmations, code, path):
-    record = create(helpers)
-    result = run(
-        helpers,
-        "confirm",
-        subject=helpers.subject(record),
-        confirmations=confirmations,
-        ledger_view=helpers.ledger_view([row_of(record)]),
+def test_bad_confirmations_are_rejected(helpers, synthetic_registry, confirmations, code, path):
+    """签认载荷校验（有槽位声明语义；蓄电池免签后本组用例由合成声明承载）。"""
+    registry = synthetic_registry()
+    payload = helpers.battery_payload()
+    payload.pop("dc_system_id")
+    payload.pop("float_current")
+    created = records_kit.process(
+        helpers.envelope("create", record_type="synthetic_record", payload=payload), registry
+    )
+    assert created["status"] == "ok", created["validation"]
+    record = created["record"]
+    result = records_kit.process(
+        helpers.envelope(
+            "confirm",
+            record_type="synthetic_record",
+            subject=helpers.subject(record),
+            confirmations=confirmations,
+            ledger_view=helpers.ledger_view([row_of(record)]),
+        ),
+        registry,
     )
     assert result["status"] == "rejected"
     assert (code, path) in codes(result), codes(result)
@@ -150,14 +199,14 @@ def test_confirm_requires_the_draft_state(helpers):
         helpers,
         "confirm",
         subject=helpers.subject(record),
-        confirmations=[helpers.confirmation()],
+        confirmations=[],
         ledger_view=helpers.ledger_view([row_of(record)]),
     )["record"]
     again = run(
         helpers,
         "confirm",
         subject=helpers.subject(confirmed),
-        confirmations=[helpers.confirmation()],
+        confirmations=[],
         ledger_view=helpers.ledger_view([row_of(confirmed)]),
     )
     assert ("E_STATE_ILLEGAL", "subject.lifecycle") in codes(again)
@@ -168,7 +217,7 @@ def test_rev_conflict_on_every_mutating_operation(helpers):
     stale = {"record_uid": record["record_uid"], "lifecycle": "draft", "rev": 9}
     view = helpers.ledger_view([row_of(record)])
     operations = [
-        ("confirm", {"confirmations": [helpers.confirmation()]}),
+        ("confirm", {"confirmations": []}),
         ("return", {"return_reason": "数据存疑"}),
         ("correct", {"payload": helpers.battery_payload(), "occurred_at": helpers.OCCURRED}),
         ("void", {"void_reason": "误录", "voided_by": "张三"}),
@@ -196,7 +245,7 @@ def test_return_keeps_the_version(helpers):
     assert returned["lifecycle"] == "draft"
     assert returned["rev"] == record["rev"]
     assert returned["digest"] == record["digest"]
-    assert returned["signature_slots"] == [{"slot": "测试人", "state": "pending"}]
+    assert returned["signature_slots"] == []
 
 
 def test_return_only_on_draft(helpers):
@@ -205,7 +254,7 @@ def test_return_only_on_draft(helpers):
         helpers,
         "confirm",
         subject=helpers.subject(record),
-        confirmations=[helpers.confirmation()],
+        confirmations=[],
         ledger_view=helpers.ledger_view([row_of(record)]),
     )["record"]
     result = run(
@@ -244,7 +293,7 @@ def test_correct_on_confirmed_opens_a_new_draft_with_supersedes(helpers):
         helpers,
         "confirm",
         subject=helpers.subject(record),
-        confirmations=[helpers.confirmation()],
+        confirmations=[],
         ledger_view=helpers.ledger_view([row_of(record)]),
     )["record"]
     payload = helpers.battery_payload(items=[{"cell_no": 1, "voltage": 2.19}])
@@ -263,7 +312,7 @@ def test_correct_on_confirmed_opens_a_new_draft_with_supersedes(helpers):
     assert corrected["rev"] == 2
     assert corrected["lifecycle"] == "draft"
     assert corrected["links"] == [{"type": "supersedes", "record_uid": record["record_uid"]}]
-    assert corrected["signature_slots"] == [{"slot": "测试人", "state": "pending"}]
+    assert corrected["signature_slots"] == []
 
 
 @pytest.mark.parametrize("lifecycle", ["voided", "archived"])
@@ -426,7 +475,7 @@ def test_archive_marks_archived(helpers):
     assert archived["lifecycle"] == "archived"
     assert archived["rev"] == 1
     assert archived["digest"] == record["digest"]
-    assert archived["signature_slots"] == [{"slot": "测试人", "state": "signed"}]
+    assert archived["signature_slots"] == []
 
 
 def test_archive_requires_confirmed_and_reference(helpers):
@@ -621,10 +670,7 @@ def test_alarm_ack_does_not_change_fields_or_rev(helpers):
         ledger_view=helpers.ledger_view([row_of(record)]),
     )
     assert result["status"] == "ok", result["validation"]
-    assert result["record"] == {
-        **record,
-        "signature_slots": [{"slot": "测试人", "state": "pending"}],
-    }
+    assert result["record"] == record
     assert result["rules"] == [] and result["trend"] == [] and result["alarm_state"] is None
     assert result["digest"] == record["digest"]
 
@@ -721,7 +767,7 @@ def test_subject_lifecycle_mismatch_on_confirm(helpers):
         helpers,
         "confirm",
         subject={"record_uid": record["record_uid"], "lifecycle": "archived", "rev": 1},
-        confirmations=[helpers.confirmation()],
+        confirmations=[],
         ledger_view=helpers.ledger_view([row_of(record, lifecycle="draft")]),
     )
     assert ("E_STATE_ILLEGAL", "subject.lifecycle") in codes(result)
@@ -734,7 +780,7 @@ def test_version_digest_falls_back_to_row_digest(helpers):
         helpers,
         "confirm",
         subject=helpers.subject(record),
-        confirmations=[helpers.confirmation()],
+        confirmations=[],
         ledger_view=helpers.ledger_view([row]),
     )
     assert result["status"] == "ok"

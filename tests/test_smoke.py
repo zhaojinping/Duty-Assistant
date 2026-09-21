@@ -21,7 +21,7 @@ def test_default_registry_carries_battery_declaration():
     registry = default_registry()
     declaration = registry["battery_voltage_test"]
     assert declaration.layout == "item_list"
-    assert declaration.signature_slots == ("测试人",)
+    assert declaration.signature_slots == ()
     assert registry.titles["battery_voltage_test"] == "蓄电池电压测试记录簿"
 
 

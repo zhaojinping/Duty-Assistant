@@ -19,9 +19,9 @@
       "env_temp": 25.0,
       "test_kind": "定期",
       "items": [
-        { "cell_no": 1, "voltage": 2.21 },
-        { "cell_no": 2, "voltage": 1.95, "remark": "合成备注" },
-        { "cell_no": 3, "voltage": 2.2 }
+        { "cell_no": 1, "voltage": 2.10 },
+        { "cell_no": 2, "voltage": 1.83, "remark": "合成备注" },
+        { "cell_no": 3, "voltage": 2.10 }
       ]
     }
   },
@@ -31,7 +31,7 @@
       "record_uid": "ST001-battery_voltage_test-20260917-1000-1",
       "rev": 1,
       "lifecycle": "draft",
-      "signature_slots": [{ "slot": "测试人", "state": "pending" }],
+      "signature_slots": [],
       "links": []
     },
     "rules": [
