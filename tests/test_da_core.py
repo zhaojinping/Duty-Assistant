@@ -1054,3 +1054,29 @@ def test_push_monthly_report_window_and_idempotence(tmp_path):
     again = push_monthly_report(ledger, settings, now="2026-10-17T08:30:00+08:00",
                                 runner=runner, poster=poster)
     assert again["pushed"] is False and again["reason"] == "already-pushed"
+
+
+def test_reopened_task_refreshes_opened_at(tmp_path):
+    """重开任务行刷新 opened_at：其后配置滚期不得把旧完成误记 done。"""
+    from da_core.scheduler import sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-10-21", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-09-21T09:00:00+08:00")
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-10-30", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-09-21T10:00:00+08:00")  # 10-21 → rebased
+
+    assert submit_submission(submission_12v(), settings=settings,
+                             ledger=ledger)["ok"] is True
+    sync_tasks(ledger, settings, now="2026-09-21T12:00:00+08:00")  # 回落 10-21：重开
+
+    row = ledger.get_task("ST001|3号组(12只)|2026-10-21")
+    assert row["state"] == "open" and row["closed_at"] is None
+    assert row["opened_at"] == "2026-09-21T12:00:00+08:00"  # 刷新为本次开启
+
+    ledger.set_cycle_config(cycle_mode="monthly_day", anchor_day=15, updated_by="测试")
+    actions = sync_tasks(ledger, settings, now="2026-09-22T09:00:00+08:00")
+    assert [a["state"] for a in actions["closed"]] == ["rebased"]
+    assert [a["due"] for a in actions["created"]] == ["2026-10-15"]

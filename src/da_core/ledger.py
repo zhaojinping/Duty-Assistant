@@ -350,10 +350,13 @@ class Ledger:
                              due_at=due_at, state=state, overdue_since=overdue_since,
                              opened_at=opened_at)
             return True
+        # 重开 = 本行新的“当前承诺”期开始：opened_at 刷新为本次开启，
+        # 保证「本期新完成」判定（scheduler 滚期结案）对重开行同样成立。
         self.conn.execute(
-            "UPDATE tasks SET state=?, overdue_since=?, closed_at=NULL, level=0 "
-            "WHERE task_id=?",
-            (state, overdue_since, task_id))
+            "UPDATE tasks SET state=?, overdue_since=?, closed_at=NULL, level=0, "
+            "opened_at=? WHERE task_id=?",
+            (state, overdue_since, opened_at, task_id),
+        )
         self.conn.commit()
         return False
 
