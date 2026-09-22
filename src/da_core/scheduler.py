@@ -9,7 +9,8 @@
 - **判定“做过”看测量时间**（迟录不冤枉）：迟到的完成同样结案（done_late）并滚动锚点；
 - **任务粒度**：每站每组一条“当前周期承诺”；task_id 约定 ``station|group|due``；
 - **滚期结案**：周期配置变更导致 due 变化、且该任务期内无「新完成」时，旧任务结案为
-  rebased（判定：最近一次完成 occurred_at 不晚于任务 opened_at），不冒充 done；
+  rebased（判定：最近一次完成 occurred_at 早于任务 opened_at；重开任务行时
+  opened_at 刷新为本次开启），不冒充 done；
 - 本模块只算账/落台账，不发送任何消息（触达见 outbox，升级链见 escalation）。
 """
 
