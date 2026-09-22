@@ -188,6 +188,12 @@ def _receipt_text(summary: dict) -> str:
         violations = [e for e in (group.get("rules") or [])
                       if e.get("verdict") == "violation"]
         parts.append(f"{group['group']} {item_count} 只（异常 {len(violations)}）")
+    dispatch = summary.get("dispatch")
+    if isinstance(dispatch, dict) and not dispatch.get("dry_run"):
+        failures = dispatch.get("failures") or []
+        written = dispatch.get("written") or 0
+        if failures or written == 0:
+            return "⚠️ 账本已记下，钉钉表没有写完，先不要当作已入库。\n——AI助手"
     return "✅ 已入库：" + "；".join(parts) + "\n——AI助手"
 
 
@@ -196,7 +202,11 @@ def poll_group(ledger, settings, *, actor: str = "群消息", runner=None,
                limit: int = 50) -> dict:
     """拉取群消息 → 处理新的测量提交 →（可选）回执；游标存 config_params。"""
     cursor = ledger.get_param(CURSOR_PARAM) or {}
-    group = cursor.get("group") or DEFAULT_GROUP
+    group = (cursor.get("group") or settings.group_name or "").strip()
+    if not group:
+        raise RuntimeError("未配置生产群，拒绝拉取")
+    if group == DEFAULT_GROUP:
+        raise RuntimeError("生产群不能使用联调群「APM测试」")
     last_time = cursor.get("last_time")
 
     messages = fetch_recent_messages(group, runner=runner, limit=limit)

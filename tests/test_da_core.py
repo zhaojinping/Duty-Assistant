@@ -828,7 +828,8 @@ def test_poll_group_processes_new_messages_and_replies(tmp_path):
 
     from da_core import group_intake
 
-    settings = make_settings(tmp_path)
+    settings = Settings.default(
+        db_path=tmp_path / "ledger.sqlite", station=dict(STATION), group_name="测试群")
     ledger = Ledger(settings.db_path)
     ledger.seed_config(settings)
 

@@ -63,6 +63,11 @@ class Settings:
             "field_ids": dict(DEFAULT_TABLE["field_ids"]),
         }
     )
+    # 用户安装后才有值。None 表示开发/测试路径，不把空字符串当成「已配置」。
+    group_name: str | None = None
+    group_cid: str | None = None
+    entry_url: str | None = None
+    ledger_url: str | None = None
 
     @classmethod
     def default(
@@ -74,6 +79,10 @@ class Settings:
         thresholds: dict | None = None,
         group_kinds: dict | None = None,
         table: dict | None = None,
+        group_name: str | None = None,
+        group_cid: str | None = None,
+        entry_url: str | None = None,
+        ledger_url: str | None = None,
     ) -> "Settings":
         if db_path is None:
             base = Path(data_dir) if data_dir else Path(os.environ.get("DA_DATA_DIR", "data"))
@@ -84,4 +93,8 @@ class Settings:
             thresholds=dict(thresholds) if thresholds else dict(DEFAULT_THRESHOLDS),
             group_kinds=dict(group_kinds) if group_kinds else dict(DEFAULT_GROUP_KINDS),
             table=table if table else {**DEFAULT_TABLE, "field_ids": dict(DEFAULT_TABLE["field_ids"])},
+            group_name=group_name,
+            group_cid=group_cid,
+            entry_url=entry_url,
+            ledger_url=ledger_url,
         )

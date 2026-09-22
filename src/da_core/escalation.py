@@ -63,7 +63,8 @@ def run_escalation(ledger, settings, *, now: str | None = None, runner=None,
                                         level=level, runner=runner, dry_run=dry_run)
         if level == 1 and with_entry_card:
             channels.append({"channel": "entry_card", **entry_card.deliver_entry_card(
-                ledger, task, runner=runner, poster=poster, dry_run=dry_run)})
+                ledger, task, runner=runner, poster=poster, dry_run=dry_run,
+                settings=settings)})
         if level >= 4:
             escalate_to = contacts.get(outbox.ROLE_ESCALATE)
             if escalate_to:

@@ -25,7 +25,6 @@ TEMPLATE_ID = "33f4dfb8-1bbc-4df1-bfe6-51eec93fab00.schema"
 GROUP_CID = "cidv+NrVM1LiAtv8FG85KEqMw=="
 ENTRY_URL = "https://battery-voltage-entry.app.workbuddy.host/"
 LEDGER_URL = "https://alidocs.dingtalk.com/i/nodes/np9zOoBVBYALR6aeuenZZglmW1DK0g6l"
-BOSS_USER_ID = "20240411222100620-4905-014C76478"  # 部署自检 / 单聊直达用
 
 # 按钮 1「点击录入」候选变量名（28 个）
 _BTN1_NAMES = ["url1", "url_1", "URL1", "Url1", "link1", "link_1", "jumpUrl1", "jump_url1",
@@ -47,27 +46,29 @@ _ACCESS_URL = "https://api.dingtalk.com/v1.0/oauth2/accessToken"
 _DELIVER_URL = "https://api.dingtalk.com/v1.0/card/instances/createAndDeliver"
 
 
-def build_card_params() -> dict:
+def build_card_params(entry_url: str = ENTRY_URL, ledger_url: str = LEDGER_URL) -> dict:
     """按钮跳转参数集（候选批量；命中即生效、未知键被忽略）。"""
-    params = {name: ENTRY_URL for name in _BTN1_NAMES}
-    params.update({name: LEDGER_URL for name in _BTN2_NAMES})
-    params.update({name: ENTRY_URL for name in _SOLO_NAMES})
+    params = {name: entry_url for name in _BTN1_NAMES}
+    params.update({name: ledger_url for name in _BTN2_NAMES})
+    params.update({name: entry_url for name in _SOLO_NAMES})
     return params
 
 
 def build_payload(*, target: str = "group", user_id: str | None = None,
-                  out_track_id: str | None = None) -> dict:
+                  out_track_id: str | None = None, group_cid: str = GROUP_CID,
+                  entry_url: str = ENTRY_URL, ledger_url: str = LEDGER_URL,
+                  robot_code: str = ROBOT_CODE, template_id: str = TEMPLATE_ID) -> dict:
     """createAndDeliver 请求体。target=group 投群；target=dm 投机器人单聊。"""
     if target == "group":
-        space = f"dtv1.card//IM_GROUP.{GROUP_CID}"
-        deliver_model = {"imGroupOpenDeliverModel": {"robotCode": ROBOT_CODE}}
+        space = f"dtv1.card//IM_GROUP.{group_cid}"
+        deliver_model = {"imGroupOpenDeliverModel": {"robotCode": robot_code}}
         space_model = {"imGroupOpenSpaceModel": {"supportForward": True}}
         suffix = "group"
     elif target == "dm":
         if not user_id:
             raise ValueError("dm 投放需要 user_id")
         space = f"dtv1.card//IM_ROBOT.{user_id}"
-        deliver_model = {"imRobotOpenDeliverModel": {"robotCode": ROBOT_CODE}}
+        deliver_model = {"imRobotOpenDeliverModel": {"robotCode": robot_code}}
         space_model = {"imRobotOpenSpaceModel": {"supportForward": True}}
         suffix = "dm"
     else:
@@ -75,10 +76,10 @@ def build_payload(*, target: str = "group", user_id: str | None = None,
     out_track = out_track_id or f"dutyplus-entrycard-{suffix}-{int(time.time())}"
     payload = {
         "userIdType": 1,
-        "cardTemplateId": TEMPLATE_ID,
+        "cardTemplateId": template_id,
         "outTrackId": out_track,
         "openSpaceId": space,
-        "cardData": {"cardParamMap": build_card_params()},
+        "cardData": {"cardParamMap": build_card_params(entry_url, ledger_url)},
         "callbackType": "STREAM",
     }
     payload.update(space_model)
@@ -96,7 +97,8 @@ def _default_poster(url: str, payload: dict, headers: dict) -> dict:
 
 def send_entry_card(*, target: str = "group", user_id: str | None = None,
                     out_track_id: str | None = None, runner=None,
-                    poster=None) -> dict:
+                    poster=None, group_cid: str = GROUP_CID,
+                    entry_url: str = ENTRY_URL, ledger_url: str = LEDGER_URL) -> dict:
     """投放一张入口卡；返回 ``{sent, detail, outTrackId?}``（不抛异常给调用方）。"""
     post = poster or _default_poster
     run = runner or dws_cli.run_dws
@@ -118,7 +120,8 @@ def send_entry_card(*, target: str = "group", user_id: str | None = None,
     if not token:
         return {"sent": False, "detail": "accessToken 获取失败"}
 
-    payload = build_payload(target=target, user_id=user_id, out_track_id=out_track_id)
+    payload = build_payload(target=target, user_id=user_id, out_track_id=out_track_id,
+                            group_cid=group_cid, entry_url=entry_url, ledger_url=ledger_url)
     resp = post(_DELIVER_URL, payload,
                 {"Content-Type": "application/json",
                  "x-acs-dingtalk-access-token": token})
@@ -128,15 +131,24 @@ def send_entry_card(*, target: str = "group", user_id: str | None = None,
 
 
 def deliver_entry_card(ledger, task: dict, *, runner=None, poster=None,
-                       dry_run: bool = False) -> dict:
+                       dry_run: bool = False, settings=None) -> dict:
     """按周期幂等地随发入口卡（供升级链调用；失败不阻断文字触达）。"""
     due = (task or {}).get("due_at") or ""
     if due and ledger.get_config_param("entry_card_last_due") == due:
         return {"sent": False, "reason": "already-sent-cycle", "due": due}
     if dry_run:
         return {"sent": False, "reason": "dry-run", "due": due}
+    card_kwargs = {}
+    if settings is not None and settings.group_cid is not None:
+        if not settings.group_cid or not settings.entry_url:
+            return {"sent": False, "reason": "card-not-configured", "due": due}
+        card_kwargs = {
+            "group_cid": settings.group_cid,
+            "entry_url": settings.entry_url,
+            "ledger_url": settings.ledger_url or settings.entry_url,
+        }
     try:
-        result = send_entry_card(target="group", runner=runner, poster=poster)
+        result = send_entry_card(target="group", runner=runner, poster=poster, **card_kwargs)
     except Exception as exc:  # noqa: BLE001 — 卡片失败不得阻断升级链
         result = {"sent": False, "detail": f"error: {exc}"}
     if result.get("sent") and due:

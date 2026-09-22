@@ -5,6 +5,8 @@ Core package: `records_kit` (see `docs/design.md`).
 
 ## 文档入口
 
+现场安装看根目录 `SKILL.md`（只交付蓄电池电压；路径、群、人员和账本都在用户自己的电脑上）。开发文档如下。
+
 | 文档 | 说明 |
 |---|---|
 | `docs/design.md` | 核心设计文档（v1.5 审定稿 + 修订 A/B/C） |
@@ -43,8 +45,8 @@ uv run pytest
 ```bash
 # bash (含 Windows git-bash)
 python3 -m venv .venv
-source .venv/Scripts/activate        # Windows git-bash 下激活
-# source .venv/bin/activate          # Linux/macOS 用这行
+source .venv/bin/activate            # Linux/macOS
+# source .venv/Scripts/activate      # Windows git-bash
 python -m pip install -e ".[test]"
 python -m pytest
 ```
