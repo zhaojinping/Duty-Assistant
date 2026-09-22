@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "records_kit"
-version = "2.1.0"
+version = "2.1.1"
 description = "Duty-Assistant core: pure-function record engine for 10 types of operation duty records (validate/assemble/rules/trend/lifecycle)."
 readme = "README.md"
 requires-python = ">=3.12"

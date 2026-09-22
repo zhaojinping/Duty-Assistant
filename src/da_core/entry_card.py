@@ -95,6 +95,22 @@ def _default_poster(url: str, payload: dict, headers: dict) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
+def credentials_from_payload(body: dict) -> dict:
+    """兼容凭据放在 data 或 result。dws 1.0.59 实测放在 result。"""
+    if not isinstance(body, dict):
+        return {}
+    for key in ("data", "result"):
+        section = body.get(key)
+        if not isinstance(section, dict):
+            continue
+        if section.get("appKey") or section.get("appSecret"):
+            return section
+        nested = section.get("data")
+        if isinstance(nested, dict) and (nested.get("appKey") or nested.get("appSecret")):
+            return nested
+    return {}
+
+
 def send_entry_card(*, target: str = "group", user_id: str | None = None,
                     out_track_id: str | None = None, runner=None,
                     poster=None, group_cid: str = GROUP_CID,
@@ -107,7 +123,7 @@ def send_entry_card(*, target: str = "group", user_id: str | None = None,
     if rc != 0:
         return {"sent": False, "detail": f"credentials-get rc={rc}: {err.strip()[:200]}"}
     try:
-        data = json.loads(out).get("data") or {}
+        data = credentials_from_payload(json.loads(out))
     except (TypeError, ValueError):
         return {"sent": False, "detail": "credentials-get 输出无法解析"}
     if not data.get("appKey") or not data.get("appSecret"):

@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import platform
+import sys
 from pathlib import Path
 
 from da_core.ledger import Ledger
@@ -204,6 +205,32 @@ def create_user_table(*, runner) -> dict:
         "field_ids": field_ids,
         "ledger_url": ledger_doc_url(base_id, table_id),
     }
+
+
+def repo_root() -> Path:
+    """从源码位置向上找到含 pyproject.toml 的仓库根。"""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "pyproject.toml").is_file() and (parent / "src" / "da_core").is_dir():
+            return parent
+    return Path.cwd()
+
+
+def venv_python(repo: Path | None = None) -> Path:
+    root = repo or repo_root()
+    if sys.platform == "win32":
+        return root / ".venv" / "Scripts" / "python.exe"
+    return root / ".venv" / "bin" / "python"
+
+
+def resolve_task_python(explicit: str | None = None) -> str:
+    """定时任务用已安装本包的解释器。未指定时优先仓库 .venv。"""
+    if explicit:
+        return explicit
+    candidate = venv_python()
+    if candidate.is_file():
+        return str(candidate)
+    return sys.executable
 
 
 def task_commands(python_exe: str) -> dict[str, list[str]]:
