@@ -16,6 +16,7 @@ from da_core.install_flow import (
     launchd_plist,
     load_runtime,
     plan_dependencies,
+    resolve_task_python,
     task_commands,
     this_hostname,
     windows_task_commands,
@@ -55,7 +56,8 @@ def add_install_parsers(commands) -> None:
 
     tasks = commands.add_parser("register-tasks", help="注册每 5 分钟拉取和每天 08:30 催办")
     tasks.add_argument("--confirm", action="store_true")
-    tasks.add_argument("--python", default=sys.executable)
+    tasks.add_argument("--python", default=None,
+                       help="定时任务使用的 Python。缺省用仓库 .venv")
 
     commands.add_parser("watch", help="拉一次录入接口和群消息")
     daily = commands.add_parser("daily", help="每天催办、月报和对账")
@@ -190,9 +192,17 @@ def _table(args) -> int:
 
 
 def _tasks(args) -> int:
-    commands = task_commands(args.python)
+    python_exe = resolve_task_python(args.python)
+    probe = subprocess.run([python_exe, "-c", "import da_core"], capture_output=True, text=True)
+    if probe.returncode != 0:
+        return _print({
+            "ok": False,
+            "message": "这个 Python 里没有安装本包。先在仓库根目录运行 python scripts/bootstrap.py，再用它注册定时任务。",
+            "python": python_exe,
+        }, code=1)
+    commands = task_commands(python_exe)
     if sys.platform == "win32":
-        planned = windows_task_commands(args.python)
+        planned = windows_task_commands(python_exe)
         if not args.confirm:
             return _print({
                 "needs_confirm": True,
@@ -251,9 +261,12 @@ def _watch_body(settings, payload) -> int:
     summary: dict = {"group": None, "pull": None}
     pull_url = payload.get("pull_url")
     if pull_url:
-        summary["pull"] = pull_remote(
-            ledger, settings, base_url=pull_url, token=payload.get("pull_token") or None,
-            notify_group=False)
+        try:
+            summary["pull"] = pull_remote(
+                ledger, settings, base_url=pull_url, token=payload.get("pull_token") or None,
+                notify_group=False)
+        except Exception as exc:  # noqa: BLE001 — 主路失败不能停掉群兜底
+            summary["pull"] = {"ok": False, "error": str(exc)[:300]}
     if payload.get("group_name"):
         summary["group"] = poll_group(ledger, settings)
     ledger.close()

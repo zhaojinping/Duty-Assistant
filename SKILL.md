@@ -19,9 +19,24 @@ description: >
 - 不放仓库、桌面、文稿、iCloud、OneDrive。
 - 新装使用空账本。不拷贝开发库，不使用开发者的路径、群、人员和表格。
 
-## 每次先体检
+## 先安装这个包
 
-在仓库根目录：
+仓库是 src 布局。新机器上还没安装时，直接 `python -m da_core.cli` 会报找不到 `da_core`。
+
+在仓库根目录，用 Python 3.12 及以上执行：
+
+```text
+python scripts/bootstrap.py
+```
+
+它在仓库里建立 `.venv` 并做可编辑安装。之后的命令都用这个环境里的 Python：
+
+- Windows：`.venv\Scripts\python.exe -m da_core.cli ...`
+- Mac：`.venv/bin/python -m da_core.cli ...`
+
+下面示例里的 `python` 都指这个环境。定时任务也会自动用它。
+
+## 每次先体检
 
 ```text
 python -m da_core.cli health
@@ -95,7 +110,7 @@ python -m da_core.cli create-table --confirm
 
 ## 定时任务
 
-告诉用户：每 5 分钟拉一次录入和群消息，每天 08:30 催办；这台电脑到点要开着。同意后只注册当前这一种系统：
+告诉用户：每 5 分钟拉一次录入和群消息，每天 08:30 催办；这台电脑到点要开着。同意后只注册当前这一种系统。解释器必须是上面建好的 `.venv`，不要用没装过本包的系统 Python：
 
 ```text
 python -m da_core.cli register-tasks --confirm

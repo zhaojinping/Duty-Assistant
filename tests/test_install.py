@@ -136,6 +136,55 @@ def test_windows_tasks_are_five_minutes_and_morning():
     assert commands[1][5:9] == ["/SC", "DAILY", "/ST", "08:30"]
 
 
+def test_credentials_accept_result_segment():
+    from da_core.entry_card import credentials_from_payload, send_entry_card
+
+    assert credentials_from_payload(
+        {"result": {"appKey": "ak", "appSecret": "sk"}})["appKey"] == "ak"
+    assert credentials_from_payload(
+        {"data": {"appKey": "ak", "appSecret": "sk"}})["appSecret"] == "sk"
+
+    def runner(args):
+        assert args[:2] == ["devapp", "+credentials-get"]
+        return 0, json.dumps({"result": {"appKey": "ak", "appSecret": "sk"}}), ""
+
+    def poster(url, payload, headers):
+        if url.endswith("/oauth2/accessToken"):
+            assert payload["appKey"] == "ak"
+            return {"accessToken": "tok"}
+        return {"success": True}
+
+    sent = send_entry_card(runner=runner, poster=poster, out_track_id="t1")
+    assert sent["sent"] is True
+
+
+def test_watch_keeps_group_when_pull_fails(tmp_path, monkeypatch):
+    import da_core.group_intake as group_intake
+    import da_core.pull_intake as pull_intake
+    from da_core.install_cli import _watch_body
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("401")
+
+    seen = {}
+
+    def poll(*_args, **_kwargs):
+        seen["group"] = True
+        return {"processed": []}
+
+    monkeypatch.setattr(pull_intake, "pull_remote", boom)
+    monkeypatch.setattr(group_intake, "poll_group", poll)
+    settings = Settings.default(
+        db_path=tmp_path / "ledger.sqlite",
+        station={"station_id": "XP", "station_name": "香坪风电场"},
+        group_name="香坪运行群")
+    result = _watch_body(
+        settings,
+        {"pull_url": "https://xiangping.example", "group_name": "香坪运行群", "pull_token": ""})
+    assert result == 0
+    assert seen["group"] is True
+
+
 def test_next_anchor_uses_the_15th():
     from da_core.install_flow import next_anchor_date
 
