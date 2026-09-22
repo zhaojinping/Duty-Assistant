@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
 import sys
 from pathlib import Path
 
 from da_core.paths import config_path, ledger_path, on_sync_disk, user_data_dir, writer_path
+
+# 1.0.62 起，写表命令才有 --client-token。更旧的 dws 会报未知参数，一行都写不进表。
+MIN_DWS = (1, 0, 62)
+MIN_DWS_TEXT = "1.0.62"
 
 
 def _item(ok: bool, code: str, message: str, *, action: str = "") -> dict:
@@ -31,6 +36,32 @@ def check_sqlite(data_dir: Path) -> dict:
     return _item(True, "sqlite", "Python 自带的账本功能可用，不必另装 SQLite")
 
 
+def parse_dws_version(text: str) -> tuple[int, int, int] | None:
+    """从 ``dws --version`` 输出里取出主版本号。"""
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", text or "")
+    if not match:
+        return None
+    return tuple(int(part) for part in match.groups())
+
+
+def dws_meets_minimum(version: tuple[int, int, int] | None) -> bool:
+    return version is not None and version >= MIN_DWS
+
+
+def check_dws_version(version_text: str | None) -> dict:
+    version = parse_dws_version(version_text or "")
+    if version is None:
+        return _item(False, "dws-version", "读不到 dws 版本",
+                     action=f"确认后升级钉钉命令行到 {MIN_DWS_TEXT} 及以上")
+    shown = ".".join(str(part) for part in version)
+    if version < MIN_DWS:
+        return _item(
+            False, "dws-version",
+            f"dws {shown} 低于 {MIN_DWS_TEXT}。写表需要这一版才有的参数，请升级，不要改程序去迁就旧版。",
+            action=f"确认后执行 npm install -g dingtalk-workspace-cli，装到 {MIN_DWS_TEXT} 及以上")
+    return _item(True, "dws-version", f"dws {shown} 满足 {MIN_DWS_TEXT} 及以上")
+
+
 def check_writer(data_dir: Path, hostname: str) -> dict:
     path = writer_path(data_dir)
     if not path.is_file():
@@ -49,7 +80,8 @@ def check_writer(data_dir: Path, hostname: str) -> dict:
 
 def collect_health(*, data_dir: Path | None = None, hostname: str,
                    python_ok: bool, dws_found: bool, dws_authenticated: bool | None,
-                   on_sync: bool, os_name: str | None = None) -> dict:
+                   on_sync: bool, os_name: str | None = None,
+                   dws_version_text: str | None = None) -> dict:
     """汇总体检项。外部探测（dws、主机名）由调用方注入，便于测试。"""
     folder = data_dir or user_data_dir()
     system = os_name or sys.platform
@@ -79,6 +111,7 @@ def collect_health(*, data_dir: Path | None = None, hostname: str,
                 dws_authenticated, "dws-auth",
                 "钉钉已登录" if dws_authenticated else "钉钉还没登录",
                 action="" if dws_authenticated else "把扫码链接交给用户，必须本人用手机点。这一步不能代点。"))
+        checks.append(check_dws_version(dws_version_text))
     configured = config_path(folder).is_file()
     checks.append(_item(configured, "config",
                         "已经有用户配置" if configured else "还没有完成本机配置",

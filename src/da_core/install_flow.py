@@ -48,8 +48,8 @@ def this_hostname() -> str:
 
 
 def plan_dependencies(*, python_ok: bool, dws_found: bool, npm_found: bool,
-                      brew_found: bool, os_name: str) -> list[dict]:
-    """确认后允许自动安装的步骤。只含 Python，以及安装 dws 所必需的 Node。"""
+                      brew_found: bool, os_name: str, dws_version_ok: bool = True) -> list[dict]:
+    """确认后允许自动安装的步骤。只含 Python，以及安装或升级 dws 所必需的 Node。"""
     steps: list[dict] = []
     if not python_ok:
         if os_name == "win32":
@@ -75,7 +75,7 @@ def plan_dependencies(*, python_ok: bool, dws_found: bool, npm_found: bool,
                 })
         else:
             steps.append({"id": "python", "command": [], "message": "请安装 Python 3.12 及以上"})
-    if not dws_found:
+    if not dws_found or not dws_version_ok:
         if not npm_found:
             if os_name == "win32":
                 steps.append({
@@ -99,7 +99,7 @@ def plan_dependencies(*, python_ok: bool, dws_found: bool, npm_found: bool,
         steps.append({
             "id": "dws",
             "command": ["npm", "install", "-g", "dingtalk-workspace-cli"],
-            "message": "安装钉钉命令行 dws",
+            "message": "安装或升级钉钉命令行 dws 到 1.0.62 及以上",
         })
     return steps
 
