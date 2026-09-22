@@ -150,11 +150,21 @@ def push_monthly_report(ledger, settings: Settings, *, now: str | None = None,
                 "text_preview": report["text"][:200]}
 
     group_result = outbox.send_group(target, report["text"], runner=runner)
-    try:
-        card_result = entry_card.send_entry_card(target="group", runner=runner,
-                                                 poster=poster)
-    except Exception as exc:  # noqa: BLE001 — 卡片失败不阻断月报正文
-        card_result = {"sent": False, "detail": f"error: {exc}"}
+    if settings.group_cid is not None and (not settings.group_cid or not settings.entry_url):
+        card_result = {"sent": False, "detail": "card-not-configured"}
+    else:
+        card_kwargs = {}
+        if settings.group_cid:
+            card_kwargs = {
+                "group_cid": settings.group_cid,
+                "entry_url": settings.entry_url,
+                "ledger_url": settings.ledger_url or settings.entry_url,
+            }
+        try:
+            card_result = entry_card.send_entry_card(target="group", runner=runner,
+                                                     poster=poster, **card_kwargs)
+        except Exception as exc:  # noqa: BLE001 — 卡片失败不阻断月报正文
+            card_result = {"sent": False, "detail": f"error: {exc}"}
     if group_result["ok"]:
         ledger.set_config_param("report_last_pushed", month, updated_by="da_daily")
     return {"pushed": group_result["ok"], "month": month, "group": group_result,

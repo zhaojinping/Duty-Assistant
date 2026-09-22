@@ -53,7 +53,7 @@ uv run python scripts/da_daily.py --db <ledger.sqlite> \
 
 ## 账本
 
-- 落点：`$DA_DATA_DIR/ledger.sqlite`（本部署：`D:\Hermes\DutyPlus\data\ledger.sqlite`，WAL 模式）。
+- 落点：本机数据目录里的 `ledger.sqlite`（Windows 为 LocalAppData\DutyAssistant，Mac 为资源库 Application Support/DutyAssistant；也可用环境变量 DA_DATA_DIR 指向别的本机目录）。WAL 模式。
 - 13 表：records / record_versions / dedupe_index / confirmations / alarms / tasks /
   task_events / deferrals / config_thresholds / config_contacts / config_params /
   ops_audit / intake_receipts。
@@ -73,7 +73,7 @@ uv run python scripts/da_daily.py --db <ledger.sqlite> \
 
 ## 群消息接入口（P3）
 
-- 拉取「APM测试」群最近消息（每 5 分钟，Hermes cron `da_group_watch.py`；异常才提醒）。
+- 拉取用户配置的生产群最近消息（每 5 分钟，`python -m da_core.cli watch`；异常才提醒）。
 - 解析：兼容原样换行与**钉钉 Markdown 规整**（`#` 行会被转成 `**加粗**`、换行折叠为空格）两种形态；判定标记＝文本含「蓄电池电压测量数据」。
 - 摄入：幂等键 = 群消息 messageId；结构性问题（如缺必填字段）转 `rejected` 摘要 → 群内回执提示补齐；游标存 `config_params.group_intake`。
 - 契约（给录入应用侧）见 `docs/entry-app-contract.md`。

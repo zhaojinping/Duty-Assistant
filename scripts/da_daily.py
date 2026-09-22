@@ -1,4 +1,4 @@
-"""无人值守日常跑：snapshot → scan --sync → escalate → reconcile（打印 JSON 摘要）。
+"""开发机上的日常跑入口。生产环境用 ``python -m da_core.cli daily``，读用户自己的配置。
 
 用法（仓库环境）::
 
@@ -16,33 +16,10 @@ import argparse
 import json
 from pathlib import Path
 
-from da_core.clock import iso_now
-from da_core.escalation import run_escalation
-from da_core.ledger import Ledger
-from da_core.reconcile import reconcile
-from da_core.reporting import push_monthly_report
-from da_core.scheduler import sync_tasks
+from da_core.daily_job import run_once, snapshot_ledger
 from da_core.settings import Settings
 
-_SNAPSHOT_KEEP = 14
-
-
-def snapshot_ledger(ledger: Ledger, snapshot_dir: Path | None, *,
-                    keep: int = _SNAPSHOT_KEEP) -> dict:
-    """每日快照（VACUUM INTO）+ 滚动保留；同日重复执行跳过。"""
-    if snapshot_dir is None:
-        return {"skipped": True, "reason": "disabled"}
-    snapshot_dir.mkdir(parents=True, exist_ok=True)
-    target = snapshot_dir / f"ledger-{iso_now()[:10]}.sqlite"
-    if target.exists():
-        return {"skipped": True, "reason": "exists", "file": target.name}
-    ledger.conn.execute("VACUUM INTO ?", (str(target),))
-    snapshots = sorted(snapshot_dir.glob("ledger-*.sqlite"))
-    pruned = []
-    for old in snapshots[:-keep]:
-        old.unlink()
-        pruned.append(old.name)
-    return {"file": target.name, "pruned": pruned}
+__all__ = ["snapshot_ledger"]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -59,25 +36,13 @@ def main(argv: list[str] | None = None) -> int:
     settings = Settings.default(
         db_path=args.db,
         station={"station_id": args.station_id, "station_name": args.station_name})
-    ledger = Ledger(settings.db_path)
-    ledger.seed_config(settings)
-
-    if args.snapshot_dir == "none":
-        snapshot_dir = None
-    elif args.snapshot_dir:
-        snapshot_dir = Path(args.snapshot_dir)
-    else:
-        snapshot_dir = settings.db_path.parent / "backups"
-
-    summary = {
-        "snapshot": snapshot_ledger(ledger, snapshot_dir),
-        "synced": sync_tasks(ledger, settings),
-        "escalation": run_escalation(ledger, settings, dry_run=args.dry_run,
-                                     with_entry_card=True),
-        "report_push": push_monthly_report(ledger, settings, dry_run=args.dry_run),
-    }
-    if not args.skip_reconcile:
-        summary["reconcile"] = reconcile(ledger, settings)
+    summary = run_once(
+        settings,
+        dry_run=args.dry_run,
+        skip_reconcile=args.skip_reconcile,
+        snapshot_dir=None if args.snapshot_dir in {None, "none"} else Path(args.snapshot_dir),
+        skip_snapshot=args.snapshot_dir == "none",
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
 

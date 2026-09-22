@@ -60,12 +60,16 @@ def main(argv: list[str] | None = None) -> int:
     correct.add_argument("--uid", required=True, help="账本记录 UID")
     correct.add_argument("--file", required=True, help="新 payload JSON（与提交 groups[] 同形）")
     correct.add_argument("--actor", required=True, help="操作人")
+    correct.add_argument("--confirm", action="store_true",
+                         help="用户已明确同意这条更正后才执行")
     _add_station_args(correct)
 
     void = commands.add_parser("void", help="作废记录（墓碑占号，判重键释放）")
     void.add_argument("--uid", required=True, help="账本记录 UID")
     void.add_argument("--reason", required=True, help="作废原因")
     void.add_argument("--actor", required=True, help="操作人")
+    void.add_argument("--confirm", action="store_true",
+                      help="用户已明确同意作废后才执行")
     _add_station_args(void)
 
     scan_cmd = commands.add_parser("scan", help="周期扫描（只读视图；--sync 落台账）")
@@ -135,7 +139,16 @@ def main(argv: list[str] | None = None) -> int:
     inspect = commands.add_parser("inspect", help="账本概览")
     inspect.add_argument("--db", required=True)
 
+    from da_core.install_cli import add_install_parsers
+
+    add_install_parsers(commands)
     args = parser.parse_args(argv)
+
+    from da_core.install_cli import handle_install
+
+    handled = handle_install(args)
+    if handled is not None:
+        return handled
 
     if args.command == "submit":
         settings = _settings_from_args(args)
@@ -146,6 +159,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "correct":
+        if not args.confirm:
+            print(json.dumps({
+                "needs_confirm": True,
+                "action": "correct",
+                "uid": args.uid,
+                "actor": args.actor,
+                "message": "先向用户复述是哪一条、要改成什么。用户明确同意后再加 --confirm。",
+            }, ensure_ascii=False, indent=2))
+            return 2
         settings = _settings_from_args(args)
         payload = json.loads(Path(args.file).read_text(encoding="utf-8"))
         result = correct_submission(payload, record_uid=args.uid, actor=args.actor,
@@ -154,6 +176,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "void":
+        if not args.confirm:
+            print(json.dumps({
+                "needs_confirm": True,
+                "action": "void",
+                "uid": args.uid,
+                "reason": args.reason,
+                "actor": args.actor,
+                "message": "先向用户复述是哪一条、作废原因是什么。用户明确同意后再加 --confirm。",
+            }, ensure_ascii=False, indent=2))
+            return 2
         settings = _settings_from_args(args)
         result = void_record(args.uid, reason=args.reason, actor=args.actor,
                              settings=settings, dispatch=True)
@@ -204,7 +236,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.set:
             role, _, target = args.set.partition("=")
             if not target.strip():
-                raise SystemExit("格式：--set role=target（如 --set reminder_group=APM测试）")
+                raise SystemExit("格式：--set role=target（如 --set reminder_group=生产群名）")
             ledger.set_contact(args.station_id, role.strip(), target.strip(), updated_by="cli")
         print(json.dumps(ledger.get_contacts(args.station_id), ensure_ascii=False, indent=2))
         return 0

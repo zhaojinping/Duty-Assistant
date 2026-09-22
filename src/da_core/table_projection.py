@@ -129,12 +129,27 @@ def write_rows(base_id: str, table_id: str, rows: list[dict], *,
                     "stderr": (proc.stderr or proc.stdout or "").strip()[:300],
                 })
                 continue
-            chunk_ids = _extract_record_ids(proc.stdout)
-            written += len(chunk_ids) if chunk_ids else len(batch)
+            chunk_ids, failure = _accept_ids(
+                _extract_record_ids(proc.stdout), offset=offset, returncode=proc.returncode)
+            if failure:
+                failures.append(failure)
+                continue
+            written += len(chunk_ids)
             record_ids.extend(chunk_ids)
         finally:
             Path(records_file).unlink(missing_ok=True)
     return {"written": written, "record_ids": record_ids, "failures": failures}
+
+
+def _accept_ids(chunk_ids: list[str], *, offset: int, returncode: int) -> tuple[list[str], dict | None]:
+    """没有记录号的批次不算写入。"""
+    if not chunk_ids:
+        return [], {
+            "offset": offset,
+            "returncode": returncode,
+            "stderr": "返回成功但没有记录号，本批不算写入",
+        }
+    return chunk_ids, None
 
 
 def _extract_record_ids(stdout: str) -> list[str]:
