@@ -155,7 +155,9 @@ _TABLES = (
 )
 
 # 周期任务种子（首个）——baseline 待现场规程核对后配置（开口项）
-_DEFAULT_CYCLE = {"cycle_days": 30, "baseline": None}
+_DEFAULT_CYCLE = {"cycle_days": 30, "baseline": None,
+                  "cycle_mode": "rolling_days", "anchor_day": 15}
+_UNSET: object = object()  # set_cycle_config 的“不改”哨兵
 
 
 def _dump(value) -> str:
@@ -260,10 +262,28 @@ class Ledger:
         ).fetchone()
         return json.loads(row["value_json"]) if row else dict(_DEFAULT_CYCLE)
 
-    def set_cycle_config(self, *, cycle_days: int, baseline: str | None,
+    def set_cycle_config(self, *, cycle_days: int | None = None,
+                         baseline: str | None | object = _UNSET,
+                         cycle_mode: str | None = None,
+                         anchor_day: int | None = None,
                          updated_by: str = "") -> None:
+        """更新周期配置：仅写入显式传入的字段（baseline=_UNSET 表示不改）。
+
+        cycle_mode：``rolling_days``（滚动天数）/ ``monthly_day``（月锚，每月 anchor_day）。
+        """
         current = self.get_cycle_config()
-        current.update({"cycle_days": int(cycle_days), "baseline": baseline})
+        if cycle_days is not None:
+            current["cycle_days"] = int(cycle_days)
+        if baseline is not _UNSET:
+            current["baseline"] = baseline
+        if cycle_mode is not None:
+            if cycle_mode not in ("rolling_days", "monthly_day"):
+                raise ValueError(f"未知 cycle_mode：{cycle_mode!r}")
+            current["cycle_mode"] = cycle_mode
+        if anchor_day is not None:
+            if not 1 <= int(anchor_day) <= 28:
+                raise ValueError("anchor_day 取值范围 1–28")
+            current["anchor_day"] = int(anchor_day)
         self.conn.execute(
             "INSERT INTO config_params(key, value_json, updated_at) VALUES('battery_cycle',?,?) "
             "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, "
@@ -271,6 +291,23 @@ class Ledger:
             (_dump(current), iso_now()),
         )
         self.audit(updated_by or "core", "cycle_config_change", "battery_cycle", current)
+        self.conn.commit()
+
+    def get_config_param(self, key: str):
+        """通用配置参数读取（config_params 表）。"""
+        row = self.conn.execute(
+            "SELECT value_json FROM config_params WHERE key=?", (key,)).fetchone()
+        return json.loads(row["value_json"]) if row else None
+
+    def set_config_param(self, key: str, value, *, updated_by: str = "core") -> None:
+        """通用配置参数写入（审计留痕）。"""
+        self.conn.execute(
+            "INSERT INTO config_params(key, value_json, updated_at) VALUES(?,?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, "
+            "updated_at=excluded.updated_at",
+            (key, _dump(value), iso_now()),
+        )
+        self.audit(updated_by, "config_param_change", key, value)
         self.conn.commit()
 
     # ── 周期任务台账 ────────────────────────────────────────────────

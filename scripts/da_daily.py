@@ -20,6 +20,7 @@ from da_core.clock import iso_now
 from da_core.escalation import run_escalation
 from da_core.ledger import Ledger
 from da_core.reconcile import reconcile
+from da_core.reporting import push_monthly_report
 from da_core.scheduler import sync_tasks
 from da_core.settings import Settings
 
@@ -71,7 +72,9 @@ def main(argv: list[str] | None = None) -> int:
     summary = {
         "snapshot": snapshot_ledger(ledger, snapshot_dir),
         "synced": sync_tasks(ledger, settings),
-        "escalation": run_escalation(ledger, settings, dry_run=args.dry_run),
+        "escalation": run_escalation(ledger, settings, dry_run=args.dry_run,
+                                     with_entry_card=True),
+        "report_push": push_monthly_report(ledger, settings, dry_run=args.dry_run),
     }
     if not args.skip_reconcile:
         summary["reconcile"] = reconcile(ledger, settings)
