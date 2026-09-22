@@ -62,7 +62,7 @@ python -m da_core.cli health
 
 ## 安装依赖
 
-`health` 里缺 Python 或 dws 时：
+`health` 里缺 Python、缺 dws，或 dws 低于 1.0.62 时：
 
 ```text
 python -m da_core.cli install-deps
@@ -74,7 +74,7 @@ python -m da_core.cli install-deps
 python -m da_core.cli install-deps --confirm
 ```
 
-只装 Python 3.12 和钉钉 dws。装 dws 时如果没有 Node.js，会一并安装。不装 Git、uv、测试工具，也不另装 SQLite。装完如果换了 Python，用新的 Python 再跑一遍 `health`。
+只装 Python 3.12，以及把钉钉 dws 装到 1.0.62 及以上。dws 已安装但版本不够时，同样升级。装 dws 时如果没有 Node.js，会一并安装。不装 Git、uv、测试工具，也不另装 SQLite。装完如果换了 Python，用新的 Python 再跑一遍 `health`。体检不通过 dws 版本时，不要改写表命令去迁就旧版。
 
 ## 写入配置
 

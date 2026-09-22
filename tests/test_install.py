@@ -74,7 +74,8 @@ def test_dependency_plan_is_python_and_dws_only():
 def test_health_uses_builtin_sqlite(tmp_path):
     report = collect_health(
         data_dir=tmp_path, hostname="pc-a", python_ok=True, dws_found=True,
-        dws_authenticated=True, on_sync=False, os_name="win32")
+        dws_authenticated=True, on_sync=False, os_name="win32",
+        dws_version_text="dws version v1.0.62")
     sqlite = next(item for item in report["checks"] if item["code"] == "sqlite")
     assert sqlite["ok"] is True
     assert report["ready_to_install"] is True
@@ -183,6 +184,25 @@ def test_watch_keeps_group_when_pull_fails(tmp_path, monkeypatch):
         {"pull_url": "https://xiangping.example", "group_name": "香坪运行群", "pull_token": ""})
     assert result == 0
     assert seen["group"] is True
+
+
+def test_dws_159_fails_health_and_plans_upgrade(tmp_path):
+    from da_core.health import collect_health
+    from da_core.install_flow import plan_dependencies
+
+    report = collect_health(
+        data_dir=tmp_path, hostname="pc-a", python_ok=True, dws_found=True,
+        dws_authenticated=True, on_sync=False, os_name="win32",
+        dws_version_text="dws version v1.0.59")
+    version = next(item for item in report["checks"] if item["code"] == "dws-version")
+    assert version["ok"] is False
+    assert report["ready_to_install"] is False
+
+    steps = plan_dependencies(
+        python_ok=True, dws_found=True, dws_version_ok=False,
+        npm_found=True, brew_found=False, os_name="win32")
+    assert steps[0]["id"] == "dws"
+    assert "1.0.62" in steps[0]["message"]
 
 
 def test_next_anchor_uses_the_15th():

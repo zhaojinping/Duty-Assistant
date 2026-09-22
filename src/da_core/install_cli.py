@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from da_core.health import collect_health
+from da_core.health import collect_health, dws_meets_minimum, parse_dws_version
 from da_core.install_flow import (
     apply_dependencies,
     create_user_table,
@@ -102,14 +102,28 @@ def _dws_authenticated() -> bool | None:
         return False
 
 
+def _dws_version_text() -> str | None:
+    if not shutil.which("dws"):
+        return None
+    from da_core import dws_cli
+
+    rc, out, err = dws_cli.run_dws(["--version"])
+    text = (out or err or "").strip()
+    if rc != 0 and not text:
+        return None
+    return text
+
+
 def _health() -> int:
     folder = user_data_dir()
+    found = bool(shutil.which("dws"))
     report = collect_health(
         data_dir=folder,
         hostname=this_hostname(),
         python_ok=sys.version_info >= (3, 12),
-        dws_found=bool(shutil.which("dws")),
-        dws_authenticated=_dws_authenticated() if shutil.which("dws") else None,
+        dws_found=found,
+        dws_authenticated=_dws_authenticated() if found else None,
+        dws_version_text=_dws_version_text() if found else None,
         on_sync=on_sync_disk(folder),
     )
     return _print(report, code=0 if report["ok"] or report["ready_to_install"] else 1)
@@ -143,9 +157,14 @@ def _init(args) -> int:
 
 
 def _deps(args) -> int:
+    found = bool(shutil.which("dws"))
+    version_ok = True
+    if found:
+        version_ok = dws_meets_minimum(parse_dws_version(_dws_version_text() or ""))
     steps = plan_dependencies(
         python_ok=sys.version_info >= (3, 12),
-        dws_found=bool(shutil.which("dws")),
+        dws_found=found,
+        dws_version_ok=version_ok,
         npm_found=bool(shutil.which("npm")),
         brew_found=bool(shutil.which("brew")),
         os_name=sys.platform,
