@@ -861,3 +861,196 @@ def test_poll_group_processes_new_messages_and_replies(tmp_path):
     # 幂等：游标之后重拉 → 不再处理
     result2 = group_intake.poll_group(ledger, settings, runner=runner, dispatch=False)
     assert result2["processed"] == []
+
+
+def test_monthly_cycle_mode_due_and_advance(tmp_path):
+    """月锚周期：下一到期 = 完成月次月 15 日（纯函数边界 + 落账推进）。"""
+    import datetime as dt
+
+    from da_core.scheduler import _next_monthly_due, scan, sync_tasks
+
+    assert _next_monthly_due(dt.date(2026, 9, 21), 15) == dt.date(2026, 10, 15)
+    assert _next_monthly_due(dt.date(2026, 10, 16), 15) == dt.date(2026, 11, 15)
+    assert _next_monthly_due(dt.date(2026, 12, 30), 15) == dt.date(2027, 1, 15)
+    assert _next_monthly_due(dt.date(2026, 1, 31), 15) == dt.date(2026, 2, 15)
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_cycle_config(cycle_mode="monthly_day", anchor_day=15, updated_by="测试")
+
+    first = submission_12v(client_submission_id="test-6月",
+                           submitted_at="2026-06-10T10:00:00+08:00")
+    assert submit_submission(first, settings=settings, ledger=ledger)["ok"] is True
+    actions = sync_tasks(ledger, settings, now="2026-06-10T11:00:00+08:00")
+    assert [a["due"] for a in actions["created"]] == ["2026-07-15"]
+
+    # 7-20 完成 = 迟于 7-15（迟到结案）；下一期应为 8-15
+    second = submission_12v(client_submission_id="test-7月",
+                            submitted_at="2026-07-20T10:00:00+08:00")
+    assert submit_submission(second, settings=settings, ledger=ledger)["ok"] is True
+    actions = sync_tasks(ledger, settings, now="2026-07-20T11:00:00+08:00")
+    assert [a["state"] for a in actions["closed"]] == ["done_late"]
+    assert [a["due"] for a in actions["created"]] == ["2026-08-15"]
+
+    report = scan(ledger, settings, now="2026-07-21T09:00:00+08:00")
+    item = next(g for g in report["groups"] if g["group"] == "3号组(12只)")
+    assert item["next_due"] == "2026-08-15"
+    assert report["cycle_mode"] == "monthly_day" and report["anchor_day"] == 15
+
+
+def test_cycle_mode_change_rebases_without_new_completion(tmp_path):
+    """滚动→月锚且无新完成：旧任务结案 rebased（不冒充 done），新任务按新口径建。"""
+    from da_core.reporting import monthly_report
+    from da_core.scheduler import sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    assert submit_submission(submission_12v(), settings=settings,
+                             ledger=ledger)["ok"] is True
+    sync_tasks(ledger, settings, now="2026-09-21T11:00:00+08:00")  # 滚动：due=10-21
+
+    ledger.set_cycle_config(cycle_mode="monthly_day", anchor_day=15, updated_by="测试")
+    actions = sync_tasks(ledger, settings, now="2026-09-22T09:00:00+08:00")
+    assert [a["state"] for a in actions["closed"]] == ["rebased"]
+    assert [a["due"] for a in actions["created"]] == ["2026-10-15"]
+
+    report = monthly_report(ledger, settings, month="2026-10")
+    assert report["totals"]["done"] == 0 and report["totals"]["done_late"] == 0
+    assert report["totals"]["due_total"] == 1 and report["totals"]["open"] == 1
+
+
+def test_entry_card_params_and_payload():
+    from da_core import entry_card as ec
+
+    params = ec.build_card_params()
+    assert params["url1"] == ec.ENTRY_URL and params["url2"] == ec.LEDGER_URL
+    assert len(params) >= 50  # 候选批量（28+28+5）
+
+    payload = ec.build_payload(target="group", out_track_id="t-group-1")
+    assert payload["cardTemplateId"] == ec.TEMPLATE_ID
+    assert payload["openSpaceId"] == "dtv1.card//IM_GROUP." + ec.GROUP_CID
+    assert payload["imGroupOpenDeliverModel"]["robotCode"] == ec.ROBOT_CODE
+    assert payload["cardData"]["cardParamMap"]["url1"] == ec.ENTRY_URL
+
+    dm = ec.build_payload(target="dm", user_id="u1", out_track_id="t-dm-1")
+    assert dm["openSpaceId"] == "dtv1.card//IM_ROBOT.u1"
+    assert dm["imRobotOpenDeliverModel"]["robotCode"] == ec.ROBOT_CODE
+
+
+def test_entry_card_deliver_once_per_cycle(tmp_path):
+    from da_core import entry_card as ec
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    posts = []
+
+    def runner(args):
+        import json as _json
+
+        assert args[:2] == ["devapp", "+credentials-get"]
+        return 0, _json.dumps({"data": {"appKey": "test-ak",
+                                        "appSecret": "test-sk"}}), ""
+
+    def poster(url, payload, headers):
+        posts.append(url)
+        if url.endswith("/oauth2/accessToken"):
+            return {"accessToken": "test-token"}
+        return {"success": True, "deliverResults": [{"success": True}]}
+
+    task_a = {"task_id": "T|g|2026-10-15", "due_at": "2026-10-15"}
+    first = ec.deliver_entry_card(ledger, task_a, runner=runner, poster=poster)
+    assert first["sent"] is True
+    assert posts.count("https://api.dingtalk.com/v1.0/card/instances/createAndDeliver") == 1
+    assert ledger.get_config_param("entry_card_last_due") == "2026-10-15"
+
+    again = ec.deliver_entry_card(ledger, task_a, runner=runner, poster=poster)
+    assert again["sent"] is False and again["reason"] == "already-sent-cycle"
+
+    task_b = {"task_id": "T|g|2026-11-15", "due_at": "2026-11-15"}
+    third = ec.deliver_entry_card(ledger, task_b, runner=runner, poster=poster)
+    assert third["sent"] is True
+
+
+def test_escalation_level1_sends_entry_card_once(tmp_path):
+    """级别 1 随发入口卡：按周期只发 1 张；不占文字触达通道。"""
+    from da_core import escalation
+    from da_core.scheduler import sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_cycle_config(cycle_days=30, baseline="2026-08-01", updated_by="测试")
+    sync_tasks(ledger, settings, now="2026-07-25T10:00:00+08:00")
+    ledger.set_contact("ST001", "reminder_group", "测试群")
+    ledger.set_contact("ST001", "reminder_assignee", "user1")
+
+    sends = []
+
+    def runner(args):
+        if args[:2] == ["devapp", "+credentials-get"]:
+            import json as _json
+
+            return 0, _json.dumps({"data": {"appKey": "test-ak",
+                                            "appSecret": "test-sk"}}), ""
+        sends.append(list(args))
+        return 0, "{}", ""
+
+    def poster(url, payload, headers):
+        if url.endswith("/oauth2/accessToken"):
+            return {"accessToken": "test-token"}
+        return {"success": True}
+
+    out = escalation.run_escalation(ledger, settings,
+                                    now="2026-07-29T10:00:00+08:00",
+                                    runner=runner, poster=poster,
+                                    with_entry_card=True)
+    card_channels = [c for o in out for c in o["channels"]
+                     if c["channel"] == "entry_card"]
+    assert sum(1 for c in card_channels if c.get("sent")) == 1
+    assert sum(1 for c in card_channels
+               if c.get("reason") == "already-sent-cycle") == 3
+    assert len(sends) == 8  # 4 组 ×（群+待办）；卡片走 poster，不占文字通道
+    assert ledger.get_config_param("entry_card_last_due") == "2026-08-01"
+
+
+def test_push_monthly_report_window_and_idempotence(tmp_path):
+    from da_core.reporting import push_monthly_report
+    from da_core.scheduler import sync_tasks
+
+    settings = make_settings(tmp_path)
+    ledger = Ledger(settings.db_path)
+    ledger.seed_config(settings)
+    ledger.set_contact("ST001", "reminder_group", "测试群")
+    sync_tasks(ledger, settings, now="2026-09-22T09:00:00+08:00")
+
+    outside = push_monthly_report(ledger, settings, now="2026-09-22T08:30:00+08:00")
+    assert outside["pushed"] is False and outside["reason"] == "not-in-window"
+
+    sends = []
+
+    def runner(args):
+        if args[:2] == ["devapp", "+credentials-get"]:
+            import json as _json
+
+            return 0, _json.dumps({"data": {"appKey": "test-ak",
+                                            "appSecret": "test-sk"}}), ""
+        sends.append(list(args))
+        return 0, "{}", ""
+
+    def poster(url, payload, headers):
+        if url.endswith("/oauth2/accessToken"):
+            return {"accessToken": "test-token"}
+        return {"success": True}
+
+    first = push_monthly_report(ledger, settings, now="2026-10-16T08:30:00+08:00",
+                                runner=runner, poster=poster)
+    assert first["pushed"] is True and first["card"]["sent"] is True
+    group_calls = [c for c in sends if c[:2] == ["chat", "+send-to-group"]]
+    assert len(group_calls) == 1 and "月报" in group_calls[0][5]
+    assert ledger.get_config_param("report_last_pushed") == "2026-10"
+
+    again = push_monthly_report(ledger, settings, now="2026-10-17T08:30:00+08:00",
+                                runner=runner, poster=poster)
+    assert again["pushed"] is False and again["reason"] == "already-pushed"

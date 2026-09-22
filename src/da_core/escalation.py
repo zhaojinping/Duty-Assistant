@@ -3,14 +3,15 @@
 级别（与 task_events.level 对应；0 保留给联调/手工）：
   1 前3天提醒 / 2 当天 / 3 逾期+1 / 4 逾期+3（升级班长） /
   5 逾期+7（升级班长）/ 6 月底（跨月节点，升级班长）
-渠道：群 + 待办（双轨）；级别 ≥4 追加对升级对象的 DM。
+渠道：群 + 待办（双轨）；级别 ≥4 追加对升级对象的 DM；
+级别 1 另随发**入口卡**（``with_entry_card=True`` 时；按周期去重，一个到期周期只发 1 张）。
 """
 
 from __future__ import annotations
 
 import datetime as _dt
 
-from da_core import outbox
+from da_core import entry_card, outbox
 from da_core.scheduler import scan
 from da_core.settings import BATTERY_TYPE
 
@@ -37,8 +38,14 @@ def compute_stage(item: dict, today: _dt.date) -> int | None:
 
 
 def run_escalation(ledger, settings, *, now: str | None = None, runner=None,
-                   dry_run: bool = False) -> list[dict]:
-    """按升级链执行触达（幂等）；返回各任务的动作清单。"""
+                   poster=None, dry_run: bool = False,
+                   with_entry_card: bool = False) -> list[dict]:
+    """按升级链执行触达（幂等）；返回各任务的动作清单。
+
+    ``with_entry_card=True``（生产编排 da_daily 使用）时，级别 1 随发入口卡：
+    卡片失败不阻断文字触达；按「到期周期」去重（config_params.entry_card_last_due）。
+    ``runner``/``poster`` 为发送器与 HTTP 注入（测试/演练），生产留空走真实通道。
+    """
     report = scan(ledger, settings, now=now)
     today = _dt.date.fromisoformat(report["today"])
     station_id = report["station_id"]
@@ -54,6 +61,9 @@ def run_escalation(ledger, settings, *, now: str | None = None, runner=None,
             continue
         channels = outbox.deliver_cycle(ledger, task, item, contacts=contacts,
                                         level=level, runner=runner, dry_run=dry_run)
+        if level == 1 and with_entry_card:
+            channels.append({"channel": "entry_card", **entry_card.deliver_entry_card(
+                ledger, task, runner=runner, poster=poster, dry_run=dry_run)})
         if level >= 4:
             escalate_to = contacts.get(outbox.ROLE_ESCALATE)
             if escalate_to:

@@ -14,12 +14,13 @@
         ↕
    ledger（SQLite 权威账本：记录/版本/判重/告警/任务/回执/审计/配置）
         ↕
-   scheduler（周期扫描：锚点滚动到期 + tasks 台账对账）
+   scheduler（周期扫描：滚动/月锚到期 + tasks 台账对账）
         ↓
    escalation（升级链六级，幂等）→ outbox（群消息 + 待办 + DM，回执留痕）
+        ／entry_card（入口卡投放：X-APM 机器人；级别 1 随发，按周期去重）
         ↓
    table_projection（钉钉 AI 表格逐行投影，单一写者；含更正/作废行同步）
-   ／reconcile（表↔账本对账，只读）／reporting（月报与按时率，只读）
+   ／reconcile（表↔账本对账，只读）／reporting（月报与按时率 + 收口推送，只读）
 ```
 
 ## CLI 一览（`python -m da_core.cli <命令>`）
@@ -35,7 +36,7 @@
 | `contacts --set role=target` | 触达目标：reminder_group / reminder_assignee / reminder_escalate |
 | `defer --task-id --until --reason --approved-by` | 延期（班长批），有效截止顺延 |
 | `reconcile` | 表↔账本对账（只读；无账本UID的行按 legacy 计数） |
-| `cycle --set-baseline/--set-cycle-days` | 周期配置 |
+| `cycle --set-baseline/--set-cycle-days/--set-mode/--set-anchor-day` | 周期配置（`rolling_days` 滚动天数 / `monthly_day` 月锚，每月锚日缺省 15） |
 | `pull-group [--limit] [--dry-run] [--no-reply]` | 群消息接入口：拉群 → 降级提交入库 → 群内回执（游标防重放） |
 | `pull-remote --base-url [--token] [--dry-run]` | 拉取式输入源：从应用侧只读接口拉取新提交（内网零暴露；幂等=client_submission_id；契约见 `docs/input-channel-v2.md`） |
 | `report [--month YYYY-MM] [--json]` | 月报：按时率/测量/更正作废/触达（只读） |
@@ -48,7 +49,7 @@ uv run python scripts/da_daily.py --db <ledger.sqlite> \
     --station-id ST001 --station-name XX风电场 [--dry-run]
 ```
 
-= `scan --sync → escalate → reconcile`；建议每日 08:30（cron / 任务计划）。
+= `scan --sync → escalate（级别 1 随发入口卡）→ 月报收口推送（每月 16–18 日）→ reconcile`；建议每日 08:30（cron / 任务计划）。
 
 ## 账本
 
@@ -65,6 +66,10 @@ uv run python scripts/da_daily.py --db <ledger.sqlite> \
 - 幂等键 `(task_id, level, channel)`；同键重试上限 3 次；失败如实留痕。
 - 级别：1 前3天 / 2 当天 / 3 逾期+1 / 4 逾期+3（升班长）/ 5 逾期+7（升班长）/
   6 月底；（0 保留给联调/手工）。
+- **入口卡**（entry_card，级别 1 随发）：X-APM 机器人经开放平台 `createAndDeliver`
+  投模板互动卡（🔋蓄电池电压测量，[点击录入][查看记录]）；按钮跳转=模板变量，
+  随卡携带候选参数集；按「到期周期」去重（`config_params.entry_card_last_due`）；
+  卡片失败不阻断文字触达，提醒期内次日重试（daily 幂等框架）。
 
 ## 群消息接入口（P3）
 
@@ -73,7 +78,7 @@ uv run python scripts/da_daily.py --db <ledger.sqlite> \
 - 摄入：幂等键 = 群消息 messageId；结构性问题（如缺必填字段）转 `rejected` 摘要 → 群内回执提示补齐；游标存 `config_params.group_intake`。
 - 契约（给录入应用侧）见 `docs/entry-app-contract.md`。
 
-## 月报（P3）
+## 月报（P3）与收口推送
 
 ```bash
 uv run python -m da_core.cli report --db <ledger.sqlite> --month 2026-09 [--json]
@@ -81,11 +86,15 @@ uv run python -m da_core.cli report --db <ledger.sqlite> --month 2026-09 [--json
 - 任务按 `due_at` 归月（按时/迟到/逾期/在办 + 按时率）；测量按 `occurred_at` 归月；
 - 更正（record_versions.op=correct）/ 作废（voided_at）/ 催办触达（task_events.sent_at）/ 延期计数；
 - 全程只读，不产生任何写操作。
+- **收口推送**（`reporting.push_monthly_report`）：每月 16–18 日把当月月报正文 +
+  入口卡发到提醒群；按自然月幂等（`config_params.report_last_pushed`）。
 
 ## 配置（以账本 config_* 表为运行期权威）
 
 - `config_thresholds`：`2V单体` 1.85–2.35 / `12V电池` 11.85–13.80（可配）。
-- `config_params.battery_cycle`：`cycle_days=30`、`baseline`（起算日，待现场规程核对）。
+- `config_params.battery_cycle`：`cycle_days=30`、`baseline`、`cycle_mode`
+  （`rolling_days` 滚动 / `monthly_day` 月锚）、`anchor_day`（锚日，缺省 15）。
+- `config_params.entry_card_last_due` / `report_last_pushed`：入口卡/月报推送幂等标记。
 - `config_contacts`：触达目标三角色（见上）。
 
 ## 纪律（改代码前先读）

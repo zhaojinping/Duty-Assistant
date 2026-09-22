@@ -100,10 +100,15 @@ def main(argv: list[str] | None = None) -> int:
     reconcile_cmd = commands.add_parser("reconcile", help="表↔账本对账（只读）")
     _add_station_args(reconcile_cmd)
 
-    cycle_cmd = commands.add_parser("cycle", help="周期配置（cycle_days / baseline）")
+    cycle_cmd = commands.add_parser(
+        "cycle", help="周期配置（cycle_days / baseline / 月锚模式）")
     cycle_cmd.add_argument("--db", required=True)
     cycle_cmd.add_argument("--set-baseline", default=None, help="起算日 YYYY-MM-DD")
     cycle_cmd.add_argument("--set-cycle-days", type=int, default=None)
+    cycle_cmd.add_argument("--set-mode", choices=("rolling_days", "monthly_day"),
+                           default=None, help="周期口径：滚动天数 / 月锚（每月锚日）")
+    cycle_cmd.add_argument("--set-anchor-day", type=int, default=None,
+                           help="月锚日（1–28，缺省 15）")
 
     pull_cmd = commands.add_parser("pull-group", help="群消息接入口：拉取并处理降级提交")
     _add_station_args(pull_cmd)
@@ -234,13 +239,17 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "cycle":
         ledger = Ledger(args.db)
-        current = ledger.get_cycle_config()
-        if args.set_baseline is not None or args.set_cycle_days is not None:
-            ledger.set_cycle_config(
-                cycle_days=args.set_cycle_days or int(current.get("cycle_days") or 30),
-                baseline=(args.set_baseline if args.set_baseline is not None
-                          else current.get("baseline")),
-                updated_by="cli")
+        updates: dict = {}
+        if args.set_cycle_days is not None:
+            updates["cycle_days"] = args.set_cycle_days
+        if args.set_baseline is not None:
+            updates["baseline"] = args.set_baseline
+        if args.set_mode is not None:
+            updates["cycle_mode"] = args.set_mode
+        if args.set_anchor_day is not None:
+            updates["anchor_day"] = args.set_anchor_day
+        if updates:
+            ledger.set_cycle_config(**updates, updated_by="cli")
         print(json.dumps(ledger.get_cycle_config(), ensure_ascii=False, indent=2))
         return 0
 
