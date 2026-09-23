@@ -447,8 +447,8 @@ def _evaluate_thermal_grade(declaration: Declaration, rule: RuleSpec, fields: di
     if resolved is None or resolved[0] != "items" or resolved[1] is None or declaration.items is None:
         report.entries.append(_entry(rule, "skipped", "info", f"{rule.expr}：target 不是条目字段"))
         return
-    temp_key = resolved[1].key
-    group_key = kv["group"].split(".", 1)[1] if kv["group"].startswith(ITEMS_KEY + ".") else kv["group"]
+    measured_field = resolved[1].key
+    group_field = kv["group"].split(".", 1)[1] if kv["group"].startswith(ITEMS_KEY + ".") else kv["group"]
     items = fields.get(ITEMS_KEY)
     if not isinstance(items, list) or not items:
         report.entries.append(_entry(rule, "skipped", "info", f"{rule.expr}：无可用条目/字段"))
@@ -458,10 +458,10 @@ def _evaluate_thermal_grade(declaration: Declaration, rule: RuleSpec, fields: di
     for item in items:
         if not isinstance(item, dict):
             continue
-        temperature = _number(item.get(temp_key, MISSING))
+        temperature = _number(item.get(measured_field, MISSING))
         if temperature is None:
             continue
-        groups.setdefault(item.get(group_key), []).append((temperature, item))
+        groups.setdefault(item.get(group_field), []).append((temperature, item))
     if not groups:
         report.entries.append(
             _entry(rule, "skipped", "info", f"{rule.expr}：操作数缺省（记录未提供所需字段）")
