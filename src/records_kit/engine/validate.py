@@ -166,28 +166,103 @@ def validate_payload(declaration, payload: dict) -> dict:
     return dict(payload)
 
 
-def require_attachments(declaration, payload: dict, envelope: dict) -> None:
-    """声明 ``require_attachment`` 的字段必须有对应附件（§5）。"""
-    needed = [
-        spec.require_attachment
-        for spec in declaration.fields
-        if spec.require_attachment and payload.get(spec.key) is not None
-    ]
-    if declaration.items is not None:
-        items = payload.get(ITEMS_KEY)
-        if isinstance(items, list):
-            for spec in declaration.items.fields:
-                if not spec.require_attachment:
-                    continue
-                if any(isinstance(item, dict) and item.get(spec.key) is not None for item in items):
-                    needed.append(spec.require_attachment)
-    if not needed:
-        return
+def missing_attachments(declaration, payload: dict, envelope: dict) -> list[dict]:
+    """声明 ``require_attachment`` 的字段缺附件的结构化清单（空 = 齐全，§5）。
+
+    - 记录级字段：只要有一条 ``kind`` 匹配的附件即可（保持原语义）；
+    - 条目级字段：该字段非空的**每个条目**都要有 ``kind`` 匹配且 ``item_key`` 与该条目
+      ``key_field`` 值相等（按字符串比较）的附件；
+    - 每条 ``{kind, item_key, text}``，``item_key`` 为条目键值（记录级为 None），
+      ``text`` 形如 ``"photo: 测点 spot_no=3 缺红外图"``。
+    """
     available = envelope.get("attachments_ref") or []
-    kinds = {entry.get("kind") for entry in available if isinstance(entry, dict)}
-    for kind in needed:
-        if kind not in kinds:
-            raise reject("attachments_ref", E_REQUIRED, f"缺少必附附件：{kind}")
+    entries = [entry for entry in available if isinstance(entry, dict)]
+    kinds = {entry.get("kind") for entry in entries}
+    missing: list[dict] = []
+    for spec in declaration.fields:
+        if spec.require_attachment and payload.get(spec.key) is not None and spec.require_attachment not in kinds:
+            missing.append(
+                {
+                    "kind": spec.require_attachment,
+                    "item_key": None,
+                    "text": f"{spec.require_attachment}: 记录字段 {spec.key} 缺{_attachment_noun(spec.require_attachment)}",
+                }
+            )
+    if declaration.items is None:
+        return missing
+    items = payload.get(ITEMS_KEY)
+    if not isinstance(items, list):
+        return missing
+    key_field = declaration.items.key_field
+    bound = {(entry.get("kind"), str(entry.get("item_key"))) for entry in entries if "item_key" in entry}
+    for spec in declaration.items.fields:
+        if not spec.require_attachment:
+            continue
+        for item in items:
+            if not isinstance(item, dict) or item.get(spec.key) is None:
+                continue
+            key_value = item.get(key_field)
+            if (spec.require_attachment, str(key_value)) not in bound:
+                missing.append(
+                    {
+                        "kind": spec.require_attachment,
+                        "item_key": key_value,
+                        "text": (
+                            f"{spec.require_attachment}: 测点 {key_field}={key_value} "
+                            f"缺{_attachment_noun(spec.require_attachment)}"
+                        ),
+                    }
+                )
+    return missing
+
+
+def require_attachments(declaration, payload: dict, envelope: dict) -> list[str]:
+    """缺附件清单的文本形态：``["photo: 测点 spot_no=3 缺红外图", ...]``（空 = 齐全）。
+
+    处置（记录级拒绝 / 规则级提醒）由调用方按声明 ``attachment_missing`` 决定。
+    """
+    return [item["text"] for item in missing_attachments(declaration, payload, envelope)]
+
+
+def _attachment_noun(kind: str) -> str:
+    return "红外图" if kind == "photo" else f"{kind} 附件"
+
+
+def attachment_issue(missing: list[dict]):
+    """缺附件的记录级拒绝（``attachment_missing="reject"``，路径 ``attachments_ref``）。"""
+    return reject("attachments_ref", E_REQUIRED, f"缺少必附附件：{'；'.join(item['text'] for item in missing)}")
+
+
+def attachment_warnings(missing: list[dict]) -> list[dict]:
+    """缺附件的规则级提醒（``attachment_missing="warn"``）：每种 kind 一条，追加在 rules 末尾。
+
+    形状与规则条目一致：``rule_id="attachment_<kind>"``、``kind="attachment"``、``tier=1``、
+    ``verdict="violation"``、``level="warn"``；不进告警候选。
+    """
+    by_kind: dict[str, list] = {}
+    for item in missing:
+        by_kind.setdefault(item["kind"], []).append(item["item_key"])
+    entries: list[dict] = []
+    for kind, keys in by_kind.items():
+        item_keys = [str(key) for key in keys if key is not None]
+        record_level = len(item_keys) < len(keys)
+        parts = []
+        if item_keys:
+            parts.append(f"测点 {'、'.join(item_keys)}")
+        if record_level:
+            parts.append("记录级附件")
+        entries.append(
+            {
+                "rule_id": f"attachment_{kind}",
+                "kind": "attachment",
+                "tier": 1,
+                "verdict": "violation",
+                "threshold": f"require_attachment:{kind}",
+                "level": "warn",
+                "detail": f"缺{_attachment_noun(kind)}：{'；'.join(parts)}",
+            }
+        )
+    return entries
 
 
 def validate_links(declaration, envelope: dict, linked_rows: list[dict]) -> list[dict]:

@@ -11,6 +11,7 @@ from pathlib import Path
 from da_core.health import collect_health, dws_meets_minimum, parse_dws_version
 from da_core.install_flow import (
     apply_dependencies,
+    create_thermo_table,
     create_user_table,
     init_install,
     launchd_plist,
@@ -40,6 +41,8 @@ def add_install_parsers(commands) -> None:
     init.add_argument("--assignee-id", default="")
     init.add_argument("--escalate-name", default="")
     init.add_argument("--escalate-id", default="")
+    init.add_argument("--thermo-assignee-name", default="", help="测温待办人，缺省沿用电压待办人")
+    init.add_argument("--thermo-assignee-id", default="")
     init.add_argument("--entry-url", required=True)
     init.add_argument("--pull-url", default="")
     init.add_argument("--pull-token", default="")
@@ -53,6 +56,10 @@ def add_install_parsers(commands) -> None:
     table = commands.add_parser("create-table", help="在用户钉钉里新建电压记录表")
     table.add_argument("--data-dir", default=None)
     table.add_argument("--confirm", action="store_true")
+
+    thermo = commands.add_parser("create-thermo-table", help="在同一张钉钉表里新建设备测温记录")
+    thermo.add_argument("--data-dir", default=None)
+    thermo.add_argument("--confirm", action="store_true")
 
     tasks = commands.add_parser("register-tasks", help="注册每 5 分钟拉取和每天 08:30 催办")
     tasks.add_argument("--confirm", action="store_true")
@@ -74,6 +81,8 @@ def handle_install(args) -> int | None:
         return _deps(args)
     if command == "create-table":
         return _table(args)
+    if command == "create-thermo-table":
+        return _thermo_table(args)
     if command == "register-tasks":
         return _tasks(args)
     if command == "watch":
@@ -140,6 +149,8 @@ def _init(args) -> int:
         "assignee_id": args.assignee_id,
         "escalate_name": args.escalate_name,
         "escalate_id": args.escalate_id,
+        "thermo_assignee_name": args.thermo_assignee_name,
+        "thermo_assignee_id": args.thermo_assignee_id,
         "entry_url": args.entry_url,
         "pull_url": args.pull_url,
         "pull_token": args.pull_token,
@@ -205,6 +216,36 @@ def _table(args) -> int:
     except (ConfigError, json.JSONDecodeError) as exc:
         return _print({"ok": False, "message": str(exc)}, code=1)
     payload.update(created)
+    config_path(folder).write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return _print({"ok": True, **created})
+
+
+def _thermo_table(args) -> int:
+    folder = Path(args.data_dir) if args.data_dir else user_data_dir()
+    payload = load_config(folder)
+    if not payload:
+        return _print({"ok": False, "message": "先完成 init，再新建测温表"}, code=1)
+    base_id = str(payload.get("base_id") or "").strip()
+    if not base_id:
+        return _print({"ok": False, "message": "先新建电压表。测温表建在同一张钉钉表里。"}, code=1)
+    if not args.confirm:
+        return _print({
+            "needs_confirm": True,
+            "message": "将在已有的钉钉表里新建《设备测温记录》，共 18 列。用户同意后再加 --confirm。",
+            "base_id": base_id,
+        }, code=2)
+    from da_core import dws_cli
+
+    try:
+        created = create_thermo_table(base_id=base_id, runner=lambda cmd: dws_cli.run_dws(cmd))
+    except (ConfigError, json.JSONDecodeError) as exc:
+        return _print({"ok": False, "message": str(exc)}, code=1)
+    payload["thermo_table"] = {
+        "base_id": created["base_id"],
+        "table_id": created["table_id"],
+        "field_ids": created["field_ids"],
+    }
     config_path(folder).write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return _print({"ok": True, **created})

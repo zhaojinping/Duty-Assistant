@@ -20,13 +20,14 @@ PAIRING_DETAIL_PREFIX = "配对悬空"
 ALL_TYPES = sorted(default_registry().record_types)
 
 #: 覆盖矩阵（卡 #24 ② 自查结论）：值 = 该类型声明的 cycle 规则数。
-#: 0 的三类待现场数值（设备测温 / 绝缘测试 / 防小动物，制度汇编无周期数值条款）；
+#: 设备测温已补 periodic:30d（例行测温，cycle_baseline 起算日仍待现场）；
+#: 0 的两类待现场数值（绝缘测试 / 防小动物，制度汇编无周期数值条款）；
 #: 其余 0 的四类为事件触发型（断路器跳闸 / 接地线 / 保护投退 / 两票），明确无周期。
 EXPECTED_CYCLE_COVERAGE = {
     "battery_voltage_test": 1,
     "breaker_trip_record": 0,
     "grounding_wire_record": 0,
-    "infrared_thermography_record": 0,
+    "infrared_thermography_record": 1,
     "insulation_test_record": 0,
     "protection_switch_record": 0,
     "rodent_proof_check_record": 0,
@@ -86,6 +87,7 @@ def test_periodic_types_report_due_with_a_completed_record(registry, helpers):
     periodic_types = [name for name in ALL_TYPES if EXPECTED_CYCLE_COVERAGE[name] > 0]
     assert periodic_types == [
         "battery_voltage_test",
+        "infrared_thermography_record",
         "surge_arrester_action_record",
         "transformer_core_clamp_current_record",
     ]
@@ -100,6 +102,9 @@ def test_periodic_types_report_due_with_a_completed_record(registry, helpers):
                 fields[spec.key] = 1.0
             elif spec.required and spec.kind == "text":
                 fields[spec.key] = "SYNTH"
+        for path, value in rule.when.items():  # 周期规则 when 引用的可选顶层字段（等值形态）也要满足
+            if "." not in path and isinstance(value, str) and ":" not in value:
+                fields[path] = value
         row = helpers.ledger_row(
             f"ST001-{record_type}-20260901-1000-1",
             lifecycle="confirmed",

@@ -12,6 +12,35 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 BATTERY_TYPE = "battery_voltage_test"
+THERMO_TYPE = "infrared_thermography_record"
+
+# 记录类型中文名（催办文案 / 回执 / 月报用）
+TYPE_LABELS: dict[str, str] = {
+    BATTERY_TYPE: "蓄电池电压测量",
+    THERMO_TYPE: "设备测温",
+}
+
+# 测温只有一个「组」：账本 group_label / 任务 task_id 段 / 群回执统一用它
+THERMO_GROUP = "设备测温"
+
+# 测温分级阈值种子（只补缺；参数名顺序与引擎 thermal_grade 表达式一致）
+DEFAULT_THERMO_THRESHOLDS: dict[str, float] = {
+    "general_diff": 15,
+    "severe_temp": 80,
+    "severe_delta": 80,
+    "critical_temp": 110,
+    "critical_delta": 95,
+}
+
+# 测温周期种子：每月 10 日一期；7–9 月加强 = 上次测温 + 7 天滚动
+DEFAULT_THERMO_CYCLE: dict = {
+    "cycle_mode": "monthly_day",
+    "anchor_day": 10,
+    "cycle_days": 30,
+    "intensive_months": [7, 8, 9],
+    "intensive_days": 7,
+    "baseline": None,
+}
 
 # 阈值种子（2026-09-21 拍板默认）：scope → (lo, hi)
 DEFAULT_THRESHOLDS: dict[str, tuple[float, float]] = {
@@ -68,6 +97,9 @@ class Settings:
     group_cid: str | None = None
     entry_url: str | None = None
     ledger_url: str | None = None
+    # 设备测温：表落点（None=未建，投影/对账跳过）与分级阈值种子
+    thermo_table: dict | None = None
+    thermo_thresholds: dict = field(default_factory=lambda: dict(DEFAULT_THERMO_THRESHOLDS))
 
     @classmethod
     def default(
@@ -83,6 +115,8 @@ class Settings:
         group_cid: str | None = None,
         entry_url: str | None = None,
         ledger_url: str | None = None,
+        thermo_table: dict | None = None,
+        thermo_thresholds: dict | None = None,
     ) -> "Settings":
         if db_path is None:
             base = Path(data_dir) if data_dir else Path(os.environ.get("DA_DATA_DIR", "data"))
@@ -97,4 +131,19 @@ class Settings:
             group_cid=group_cid,
             entry_url=entry_url,
             ledger_url=ledger_url,
+            thermo_table=_normalize_thermo_table(thermo_table),
+            thermo_thresholds={**DEFAULT_THERMO_THRESHOLDS, **(thermo_thresholds or {})},
         )
+
+
+def _normalize_thermo_table(table: dict | None) -> dict | None:
+    """测温表配置：缺 base_id/table_id 视为未建（None），避免把空字符串当成已配置。"""
+    if not isinstance(table, dict):
+        return None
+    if not table.get("base_id") or not table.get("table_id"):
+        return None
+    return {
+        "base_id": table["base_id"],
+        "table_id": table["table_id"],
+        "field_ids": dict(table.get("field_ids") or {}),
+    }

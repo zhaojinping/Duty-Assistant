@@ -1,7 +1,7 @@
 {
   "name": "ir-create-thermography",
   "record_type": "infrared_thermography_record",
-  "note": "合成样本（synthetic，占位站/人名）：一次例行测温两测点，δt/相间温差人工报数（F1 拍板），缺陷判定正常 → 无流水线告警；限值/分级规则未转正（数值待现场）→ rules 空",
+  "note": "合成样本（synthetic，占位站/人名）：一次例行测温两测点、分属两台设备。免签。单测点不算 δt，温度未达严重/危急，引擎判正常；缺红外图只提醒。",
   "envelope": {
     "protocol": "records-kit",
     "protocol_version": "1.5",
@@ -28,10 +28,14 @@
       "record_uid": "ST001-infrared_thermography_record-20260920-0750-1",
       "rev": 1,
       "lifecycle": "draft",
-      "signature_slots": [{ "slot": "记录人", "state": "pending" }],
+      "signature_slots": [],
       "links": []
     },
-    "rules": [],
+    "rules": [
+      {"rule_id": "thermal_grade", "verdict": "pass", "level": "info", "detail_contains": "等级=正常"},
+      {"rule_id": "defect_reported", "verdict": "pass"},
+      {"rule_id": "attachment_photo", "verdict": "violation", "level": "warn", "detail_contains": "缺红外图"}
+    ],
     "alarm_state": { "state": null, "suppressed": false, "evidence_contains": "无 alarm 级违规" },
     "actions_hint": [],
     "cycle": null

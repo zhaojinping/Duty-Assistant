@@ -99,9 +99,16 @@ def pull_remote(ledger: Ledger, settings: Settings, *, base_url: str | None = No
                 })
                 continue
             wire = {key: submission.get(key) for key in _ITEM_KEYS}
+            from da_core.thermo import is_thermo_submission, submit_thermography
             try:
-                summary = submit_submission(wire, settings=settings, ledger=ledger,
-                                            dispatch=dispatch)
+                if is_thermo_submission(submission):
+                    thermo_wire = dict(submission)
+                    thermo_wire.setdefault("operator", wire.get("operator"))
+                    summary = submit_thermography(
+                        thermo_wire, settings=settings, ledger=ledger, dispatch=dispatch)
+                else:
+                    summary = submit_submission(wire, settings=settings, ledger=ledger,
+                                                dispatch=dispatch)
             except IntakeError as exc:
                 hard_fail = True  # 结构性问题：保留游标，下轮重试
                 processed.append({"id": submission_id, "ok": False, "error": str(exc)})

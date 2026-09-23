@@ -17,6 +17,7 @@ from pathlib import Path
 from records_kit.util import wall_day, wall_stamp
 
 from da_core.clock import iso_now
+from da_core.settings import DEFAULT_THERMO_CYCLE, DEFAULT_THERMO_THRESHOLDS
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS records (
@@ -228,7 +229,60 @@ class Ledger:
             "INSERT OR IGNORE INTO config_params(key, value_json, updated_at) VALUES(?,?,?)",
             ("battery_cycle", _dump(_DEFAULT_CYCLE), now),
         )
+        # 设备测温：分级阈值与周期种子（只补缺）
+        thermo_thresholds = {**DEFAULT_THERMO_THRESHOLDS,
+                             **dict(getattr(settings, "thermo_thresholds", None) or {})}
+        self.conn.execute(
+            "INSERT OR IGNORE INTO config_params(key, value_json, updated_at) VALUES(?,?,?)",
+            ("thermo_thresholds", _dump(thermo_thresholds), now),
+        )
+        self.conn.execute(
+            "INSERT OR IGNORE INTO config_params(key, value_json, updated_at) VALUES(?,?,?)",
+            ("thermo_cycle", _dump(DEFAULT_THERMO_CYCLE), now),
+        )
         self.conn.commit()
+
+    # ── 设备测温配置 ─────────────────────────────────────────────────
+
+    def get_thermo_thresholds(self) -> dict:
+        """分级阈值：库内值优先，缺项用代码默认补齐（参数名与引擎表达式一致）。"""
+        stored = self.get_param("thermo_thresholds") or {}
+        return {**DEFAULT_THERMO_THRESHOLDS, **{k: v for k, v in stored.items() if v is not None}}
+
+    def set_thermo_thresholds(self, values: dict, *, updated_by: str = "") -> None:
+        unknown = sorted(set(values) - set(DEFAULT_THERMO_THRESHOLDS))
+        if unknown:
+            raise ValueError(f"未知测温阈值参数：{'、'.join(unknown)}")
+        merged = {**self.get_thermo_thresholds(), **{k: float(v) for k, v in values.items()}}
+        self.set_config_param("thermo_thresholds", merged, updated_by=updated_by or "core")
+
+    def get_thermo_cycle(self) -> dict:
+        stored = self.get_param("thermo_cycle") or {}
+        return {**DEFAULT_THERMO_CYCLE, **stored}
+
+    def set_thermo_cycle(self, *, anchor_day: int | None = None,
+                         baseline: str | None | object = _UNSET,
+                         intensive_months: list[int] | None = None,
+                         intensive_days: int | None = None,
+                         updated_by: str = "") -> None:
+        """更新测温周期：仅写显式传入的字段（baseline=_UNSET 表示不改）。"""
+        current = self.get_thermo_cycle()
+        if anchor_day is not None:
+            if not 1 <= int(anchor_day) <= 28:
+                raise ValueError("anchor_day 取值范围 1–28")
+            current["anchor_day"] = int(anchor_day)
+        if baseline is not _UNSET:
+            current["baseline"] = baseline
+        if intensive_months is not None:
+            months = sorted({int(m) for m in intensive_months})
+            if any(not 1 <= m <= 12 for m in months):
+                raise ValueError("intensive_months 取值范围 1–12")
+            current["intensive_months"] = months
+        if intensive_days is not None:
+            if int(intensive_days) < 1:
+                raise ValueError("intensive_days 至少 1 天")
+            current["intensive_days"] = int(intensive_days)
+        self.set_config_param("thermo_cycle", current, updated_by=updated_by or "core")
 
     def get_thresholds(self, record_type: str = "battery_voltage_test") -> dict:
         rows = self.conn.execute(

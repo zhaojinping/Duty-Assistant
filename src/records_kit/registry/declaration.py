@@ -34,6 +34,19 @@ MONOTONIC_PARAMS = ("key", "op", "window")
 PAIRING_TYPES = ("grounding", "protection")
 # items 容器的固定 payload 键（§7.2 声明的条目容器即 ``items``）
 ITEMS_KEY = "items"
+# meta.attachment_missing：声明 require_attachment 的字段缺附件时的处置（缺省 reject=记录级拒绝）
+ATTACHMENT_MISSING_MODES = ("reject", "warn")
+# thermal_grade（T2 测温分级）具名参数：全部必填、名称精确
+THERMAL_GRADE_PARAMS = (
+    "group",
+    "env",
+    "general_diff",
+    "severe_temp",
+    "severe_delta",
+    "critical_temp",
+    "critical_delta",
+)
+THERMAL_GRADE_NUMERIC_PARAMS = THERMAL_GRADE_PARAMS[2:]
 
 
 class DeclarationError(ValueError):
@@ -125,6 +138,7 @@ class Declaration:
     rules: tuple[RuleSpec, ...]
     trends: tuple[TrendSpec, ...]
     source: str = ""
+    attachment_missing: str = "reject"
 
     @property
     def items_key(self) -> str:

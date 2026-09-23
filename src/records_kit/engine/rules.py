@@ -206,9 +206,22 @@ def evaluate_rules(
             _evaluate_t3(
                 declaration, rule, fields, report, ledger_view, baselines, occurred_at, current_record_uid
             )
+        elif split_expr(rule.expr)[0] == "thermal_grade":
+            _evaluate_thermal_grade(declaration, rule, fields, report)  # 分组算子：每组一条，不逐条目
         else:
             _evaluate_rule(declaration, rule, fields, report)
     return report
+
+
+def _append_violation_effects(declaration: Declaration, rule: RuleSpec, level: str, label: str, detail: str, report: RulesReport) -> None:
+    """violation 的附带效应：alarm 级追加告警候选；声明了 action 则追加建议动作（去重）。"""
+    if level == "alarm":
+        report.alarm_candidates.append((rule.id, label))
+    if rule.action:
+        if rule.action not in declaration.action_codes:
+            raise reject(rule.id, E_ACTION_CODE, f"建议动作码不在声明的 action_codes 内：{rule.action}")
+        if all(action["code"] != rule.action for action in report.actions):
+            report.actions.append({"code": rule.action, "text": f"{rule.id}：{detail}"})
 
 
 def _targets(declaration: Declaration, rule: RuleSpec, fields: dict):
@@ -391,6 +404,113 @@ def _label_text(declaration: Declaration, item: dict | None) -> str:
         return "记录"
     key_field = declaration.items.key_field
     return f"条目 {key_field}={item.get(key_field)}"
+
+
+# ---------------------------------------------------------------- T2 分组算子：thermal_grade（测温分级）
+
+# 缺陷等级顺序（低 → 高）：人工判定与引擎判定的比较基准
+THERMAL_GRADES = ("正常", "一般缺陷", "严重缺陷", "危急缺陷")
+# 电流致热型通用判据适用的致热类型：空 / 电流致热 才分级，其余类型输出 skipped
+THERMAL_CURRENT_HEAT = ("电流致热",)
+# 条目上的可选字段名：致热类型 / 人工缺陷判定（红外测温声明约定）
+THERMAL_HEAT_TYPE_FIELD = "heat_type"
+THERMAL_MANUAL_GRADE_FIELD = "defect_grade"
+
+
+def _thermal_grade_of(hot: float, diff_k: float | None, delta: float | None, kv: dict) -> str:
+    """按顺序命中：危急 → 严重 → 一般 → 正常；δt 不可算时只按温度阈值判。"""
+    critical_temp = float(kv["critical_temp"])
+    critical_delta = float(kv["critical_delta"])
+    severe_temp = float(kv["severe_temp"])
+    severe_delta = float(kv["severe_delta"])
+    general_diff = float(kv["general_diff"])
+    if hot > critical_temp or (delta is not None and delta >= critical_delta):
+        return THERMAL_GRADES[3]
+    if hot > severe_temp or (delta is not None and delta >= severe_delta):
+        return THERMAL_GRADES[2]
+    if diff_k is not None and diff_k > general_diff:
+        return THERMAL_GRADES[1]
+    return THERMAL_GRADES[0]
+
+
+def _evaluate_thermal_grade(declaration: Declaration, rule: RuleSpec, fields: dict, report: RulesReport) -> None:
+    """测温分级（T2）：按 ``group=`` 字段分组，组内最高温为热点、最低温为基准相。
+
+    每组只对热点条目出一条 entry；``δt = (hot − normal) / (hot − env) × 100``，
+    组内单条目或 ``hot − env <= 0`` 时 δt 不可算，仅按温度阈值判。
+    致热类型非空且非「电流致热」→ ``skipped``（设备类别判据本版不判）。
+    entry.level 按等级覆盖 rule.level：危急/严重 → alarm，一般 → warn，正常 → pass/info。
+    """
+    _, args = split_expr(rule.expr)
+    _, kv = parse_kv(args)
+    resolved = resolve_path(declaration, rule.target or "")
+    if resolved is None or resolved[0] != "items" or resolved[1] is None or declaration.items is None:
+        report.entries.append(_entry(rule, "skipped", "info", f"{rule.expr}：target 不是条目字段"))
+        return
+    measured_field = resolved[1].key
+    group_field = kv["group"].split(".", 1)[1] if kv["group"].startswith(ITEMS_KEY + ".") else kv["group"]
+    items = fields.get(ITEMS_KEY)
+    if not isinstance(items, list) or not items:
+        report.entries.append(_entry(rule, "skipped", "info", f"{rule.expr}：无可用条目/字段"))
+        return
+
+    groups: dict = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        temperature = _number(item.get(measured_field, MISSING))
+        if temperature is None:
+            continue
+        groups.setdefault(item.get(group_field), []).append((temperature, item))
+    if not groups:
+        report.entries.append(
+            _entry(rule, "skipped", "info", f"{rule.expr}：操作数缺省（记录未提供所需字段）")
+        )
+        return
+
+    env = _number(fields.get(kv["env"], MISSING))
+    for group_value, members in groups.items():
+        hot_temp, hot = max(members, key=lambda pair: pair[0])
+        label = _label_text(declaration, hot)
+        heat_type = hot.get(THERMAL_HEAT_TYPE_FIELD)
+        if heat_type not in (None, "") and heat_type not in THERMAL_CURRENT_HEAT:
+            report.entries.append(
+                _entry(
+                    rule,
+                    "skipped",
+                    "info",
+                    f"设备 {group_value}：热点 {label} 实测 {hot_temp}℃；"
+                    f"{heat_type} 分级依设备类别判据，本版不判，以人工判定为准",
+                )
+            )
+            continue
+        normal_temp = min(members, key=lambda pair: pair[0])[0] if len(members) >= 2 else None
+        diff_k = hot_temp - normal_temp if normal_temp is not None else None
+        delta = None
+        if diff_k is not None and env is not None and hot_temp - env > 0:
+            delta = diff_k / (hot_temp - env) * 100
+        grade = _thermal_grade_of(hot_temp, diff_k, delta, kv)
+
+        parts = [f"设备 {group_value}：热点 {label} 实测 {hot_temp}℃"]
+        if normal_temp is not None:
+            parts.append(f"基准相 {normal_temp}℃")
+            parts.append(f"温差 {round(diff_k, 2)}K")
+        if delta is not None:
+            parts.append(f"δt {round(delta, 2)}%")
+        else:
+            parts.append("无基准相/温升≤0，δt 未算")
+        parts.append(f"等级={grade}")
+        detail = "，".join(parts)
+        manual = hot.get(THERMAL_MANUAL_GRADE_FIELD)
+        if manual in THERMAL_GRADES and THERMAL_GRADES.index(manual) < THERMAL_GRADES.index(grade):
+            detail += f"；人工判定「{manual}」低于引擎判定「{grade}」"
+
+        if grade == THERMAL_GRADES[0]:
+            report.entries.append(_entry(rule, "pass", "info", detail))
+            continue
+        level = "alarm" if grade in THERMAL_GRADES[2:] else "warn"
+        report.entries.append(_entry(rule, "violation", level, detail))
+        _append_violation_effects(declaration, rule, level, label, detail, report)
 
 
 # ---------------------------------------------------------------- T3（台账/跨记录）

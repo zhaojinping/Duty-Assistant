@@ -22,7 +22,7 @@ import datetime as _dt
 from records_kit.util import parse_rfc3339
 
 from da_core.clock import iso_now
-from da_core.settings import BATTERY_TYPE
+from da_core.settings import BATTERY_TYPE, THERMO_GROUP, THERMO_TYPE
 
 
 def _wall_date(text: str) -> _dt.date:
@@ -45,7 +45,8 @@ def _next_monthly_due(completed: _dt.date, anchor_day: int) -> _dt.date:
     return _dt.date(year, month, day)
 
 
-def group_completions(ledger, station_id: str, group_label: str) -> list[dict]:
+def group_completions(ledger, station_id: str, group_label: str,
+                      record_type: str = BATTERY_TYPE) -> list[dict]:
     """该组完成历史（confirmed/archived，含迟到完成），按 occurred_at 升序。"""
     return [
         {"record_uid": row["record_uid"], "occurred_at": row["occurred_at"],
@@ -53,9 +54,34 @@ def group_completions(ledger, station_id: str, group_label: str) -> list[dict]:
         for row in ledger.conn.execute(
             "SELECT * FROM records WHERE station_id=? AND record_type=? AND group_label=? "
             "AND lifecycle IN ('confirmed','archived') ORDER BY occurred_at, record_uid",
-            (station_id, BATTERY_TYPE, group_label),
+            (station_id, record_type, group_label),
         )
     ]
+
+
+def _anchor_on_or_after(day: _dt.date, anchor_day: int) -> _dt.date:
+    """不早于 day 的下一个锚日（当天已过锚日则顺延到下月）。"""
+    capped = min(anchor_day, calendar.monthrange(day.year, day.month)[1])
+    candidate = _dt.date(day.year, day.month, capped)
+    if candidate >= day:
+        return candidate
+    return _next_monthly_due(day, anchor_day)
+
+
+def next_thermo_due(completed: _dt.date, *, anchor_day: int = 10,
+                    intensive_months: list | tuple = (7, 8, 9),
+                    intensive_days: int = 7) -> _dt.date:
+    """例行：次月锚日。7–9 月：上次 + 7 天；滚出加强月则回到下一个锚日。
+
+    加强月里的锚日测量本身算一周，下一次是 +7 天，不另催一次锚日。
+    """
+    months = {int(month) for month in intensive_months}
+    if completed.month in months:
+        rolling = completed + _dt.timedelta(days=int(intensive_days))
+        if rolling.month in months:
+            return rolling
+        return _anchor_on_or_after(rolling, anchor_day)
+    return _next_monthly_due(completed, anchor_day)
 
 
 def scan(ledger, settings, *, now: str | None = None) -> dict:
@@ -117,14 +143,95 @@ def scan(ledger, settings, *, now: str | None = None) -> dict:
             "anchor_day": anchor_day, "baseline": baseline, "groups": groups}
 
 
+def scan_thermo(ledger, settings, *, now: str | None = None) -> dict:
+    """设备测温只有一组。无历史时用 thermo_cycle.baseline（安装时的下一个 10 日）。"""
+    station_id = (settings.station or {}).get("station_id")
+    if not station_id:
+        raise ValueError("部署未配置 station（settings.station）")
+    cycle = ledger.get_thermo_cycle()
+    anchor_day = int(cycle.get("anchor_day") or 10)
+    intensive_months = cycle.get("intensive_months") or [7, 8, 9]
+    intensive_days = int(cycle.get("intensive_days") or 7)
+    baseline = cycle.get("baseline")
+    today = _now_date(now)
+    done = group_completions(ledger, station_id, THERMO_GROUP, THERMO_TYPE)
+    last = done[-1] if done else None
+    if last is not None:
+        due: _dt.date | None = next_thermo_due(
+            _wall_date(last["occurred_at"]), anchor_day=anchor_day,
+            intensive_months=intensive_months, intensive_days=intensive_days)
+    elif baseline:
+        due = _dt.date.fromisoformat(str(baseline)[:10])
+    else:
+        due = None
+    deferred_until = None
+    due_effective = due
+    if due is not None:
+        deferred_until = ledger.latest_deferral(station_id, THERMO_GROUP, due.isoformat())
+        if deferred_until and deferred_until > due.isoformat():
+            due_effective = _dt.date.fromisoformat(deferred_until)
+    overdue_days = ((today - due_effective).days
+                    if due_effective and today > due_effective else 0)
+    if due is None:
+        status = "awaiting_baseline"
+    elif overdue_days > 0:
+        status = "overdue"
+    elif deferred_until and deferred_until > due.isoformat():
+        status = "deferred"
+    else:
+        status = "ok"
+    return {
+        "station_id": station_id,
+        "today": today.isoformat(),
+        "anchor_day": anchor_day,
+        "group": {
+            "group": THERMO_GROUP,
+            "last_done_at": last["occurred_at"] if last else None,
+            "last_done_uid": last["record_uid"] if last else None,
+            "next_due": due.isoformat() if due else None,
+            "due_effective": due_effective.isoformat() if due_effective else None,
+            "deferred_until": deferred_until,
+            "days_to_due": (due_effective - today).days if due_effective else None,
+            "overdue_days": overdue_days,
+            "status": status,
+        },
+    }
+
+
+def ensure_thermo_baseline(ledger, settings, *, today: _dt.date | None = None) -> str | None:
+    """还没有测温记录、也没有起算日时，写成今天之后最近的锚日（含今天）。"""
+    from da_core.install_flow import next_anchor_date
+
+    cycle = ledger.get_thermo_cycle()
+    if cycle.get("baseline"):
+        return str(cycle["baseline"])
+    station_id = (settings.station or {}).get("station_id")
+    if not station_id:
+        return None
+    if group_completions(ledger, station_id, THERMO_GROUP, THERMO_TYPE):
+        return None
+    anchor = int(cycle.get("anchor_day") or 10)
+    baseline = next_anchor_date(today or _now_date(), anchor)
+    ledger.set_thermo_cycle(baseline=baseline, updated_by="thermo-baseline")
+    return baseline
+
+
 def sync_tasks(ledger, settings, *, now: str | None = None) -> dict:
     """扫描结果 ↔ tasks 台账对账：补建 / 滚动 / 结案 / 状态推进。"""
     report = scan(ledger, settings, now=now)
-    station_id = report["station_id"]
+    actions = _sync_items(ledger, report["station_id"], report["groups"],
+                          BATTERY_TYPE, now=now)
+    thermo = scan_thermo(ledger, settings, now=now)
+    actions["thermo"] = _sync_items(
+        ledger, thermo["station_id"], [thermo["group"]], THERMO_TYPE, now=now)
+    return actions
+
+
+def _sync_items(ledger, station_id: str, groups: list[dict], record_type: str,
+                *, now: str | None) -> dict:
     actions: dict = {"created": [], "closed": [], "updated": [],
                      "awaiting_baseline": []}
-
-    for item in report["groups"]:
+    for item in groups:
         if item["next_due"] is None:
             actions["awaiting_baseline"].append(item["group"])
             continue
@@ -132,7 +239,7 @@ def sync_tasks(ledger, settings, *, now: str | None = None) -> dict:
         desired_state = "overdue" if item["overdue_days"] > 0 else "open"
         overdue_since = ((desired_due + _dt.timedelta(days=1)).isoformat()
                          if desired_state == "overdue" else None)
-        current = ledger.current_task(station_id, BATTERY_TYPE, item["group"])
+        current = ledger.current_task(station_id, record_type, item["group"])
 
         if current is not None and current["due_at"] == item["next_due"]:
             if current["state"] != desired_state:
@@ -166,7 +273,7 @@ def sync_tasks(ledger, settings, *, now: str | None = None) -> dict:
 
         task_id = _task_id(station_id, item["group"], desired_due)
         created = ledger.upsert_task(
-            task_id=task_id, station_id=station_id, record_type=BATTERY_TYPE,
+            task_id=task_id, station_id=station_id, record_type=record_type,
             period_key=desired_due.isoformat(), due_at=desired_due.isoformat(),
             state=desired_state, overdue_since=overdue_since,
             opened_at=(now or iso_now()))

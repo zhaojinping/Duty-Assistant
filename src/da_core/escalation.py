@@ -12,8 +12,8 @@ from __future__ import annotations
 import datetime as _dt
 
 from da_core import entry_card, outbox
-from da_core.scheduler import scan
-from da_core.settings import BATTERY_TYPE
+from da_core.scheduler import scan, scan_thermo
+from da_core.settings import BATTERY_TYPE, THERMO_GROUP, THERMO_TYPE, TYPE_LABELS
 
 
 def compute_stage(item: dict, today: _dt.date) -> int | None:
@@ -77,4 +77,61 @@ def run_escalation(ledger, settings, *, now: str | None = None, runner=None,
                     runner=runner, dry_run=dry_run)})
         outputs.append({"task_id": task["task_id"], "level": level,
                         "channels": channels})
+    outputs.extend(_thermo_escalation(
+        ledger, settings, today=today, contacts=contacts, now=now,
+        runner=runner, dry_run=dry_run))
     return outputs
+
+
+def _thermo_escalation(ledger, settings, *, today, contacts, now, runner, dry_run) -> list[dict]:
+    """测温催办走同一升级链，不发蓄电池入口卡。待办人优先测温责任人。"""
+    report = scan_thermo(ledger, settings, now=now)
+    item = report["group"]
+    level = compute_stage(item, today)
+    if level is None:
+        return []
+    station_id = report["station_id"]
+    task = ledger.current_task(station_id, THERMO_TYPE, item["group"])
+    if task is None:
+        return []
+    from da_core import outbox
+
+    assignee = contacts.get("thermo_assignee") or contacts.get(outbox.ROLE_ASSIGNEE)
+    touched = dict(contacts)
+    if assignee:
+        touched[outbox.ROLE_ASSIGNEE] = assignee
+    label = TYPE_LABELS.get(THERMO_TYPE, THERMO_GROUP)
+    due = item.get("due_effective") or item.get("next_due")
+    overdue = int(item.get("overdue_days") or 0)
+    if overdue > 0:
+        text = f"⚠️ {label}已超期 {overdue} 天（应于 {due} 前完成）"
+        title = f"【超期{overdue}天】{label}"
+    else:
+        days = item.get("days_to_due")
+        text = f"⏰ {label}应于 {due} 前完成（剩余 {days} 天）"
+        title = f"【倒计时{days}天】{label}"
+    text += "\n请按规程完成测温并录入。\n——AI助手"
+    channels = []
+    group_target = touched.get(outbox.ROLE_GROUP)
+    if group_target:
+        channels.append({"channel": "group", **outbox.deliver(ledger, {
+            "task_id": task["task_id"], "level": level, "channel": "group",
+            "target": group_target, "text": text}, runner=runner, dry_run=dry_run)})
+    else:
+        channels.append({"channel": "group", "sent": False, "reason": "no-target"})
+    if assignee:
+        channels.append({"channel": "todo", **outbox.deliver(ledger, {
+            "task_id": task["task_id"], "level": level, "channel": "todo",
+            "target": assignee, "title": title, "due": task["due_at"] + "T23:59:59+08:00"},
+            runner=runner, dry_run=dry_run)})
+    else:
+        channels.append({"channel": "todo", "sent": False, "reason": "no-target"})
+    if level >= 4:
+        escalate_to = contacts.get(outbox.ROLE_ESCALATE)
+        if escalate_to:
+            channels.append({"channel": "dm", **outbox.deliver(ledger, {
+                "task_id": task["task_id"], "level": level, "channel": "dm",
+                "target": escalate_to,
+                "text": (f"【升级】{label}已超期 {overdue} 天（应于 {due} 前完成），请跟进。\n——AI助手")},
+                runner=runner, dry_run=dry_run)})
+    return [{"task_id": task["task_id"], "level": level, "channels": channels}]

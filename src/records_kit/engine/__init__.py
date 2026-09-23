@@ -16,6 +16,8 @@ from records_kit.engine.lifecycle import LifecycleResult, run as run_lifecycle
 from records_kit.engine.rules import RulesReport, evaluate_rules, when_matches
 from records_kit.engine.trend import evaluate_trend
 from records_kit.engine.validate import (
+    attachment_warnings,
+    missing_attachments,
     require_attachments,
     validate_links,
     validate_payload,
@@ -26,6 +28,7 @@ __all__ = [
     "LifecycleResult",
     "RulesReport",
     "alarm_history",
+    "attachment_warnings",
     "baselines",
     "evaluate_alarm",
     "evaluate_rules",
@@ -33,6 +36,7 @@ __all__ = [
     "fingerprint",
     "history",
     "ledger",
+    "missing_attachments",
     "probe_cycle",
     "require_attachments",
     "run_lifecycle",

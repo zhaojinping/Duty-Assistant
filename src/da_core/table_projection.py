@@ -73,6 +73,79 @@ def compose_rows(group_result: dict, *, field_ids: dict,
     return rows
 
 
+def compose_thermo_rows(group_result: dict, *, field_ids: dict) -> list[dict]:
+    """一个测点一行。引擎判级按设备带上；判定说明写在该设备热点行。"""
+    from da_core.thermo import device_findings
+
+    payload = group_result["_payload"]
+    record = group_result["_record"]
+    findings = device_findings(group_result.get("rules") or [])
+    hottest: dict[str, dict] = {}
+    for item in payload["items"]:
+        name = item["device_name"]
+        previous = hottest.get(name)
+        if previous is None or float(item["measured_temp"]) >= float(previous["measured_temp"]):
+            hottest[name] = item
+
+    def put(cells: dict, label: str, value) -> None:
+        if value is None or value == "":
+            return
+        field_id = field_ids.get(label)
+        if field_id:
+            cells[field_id] = value
+
+    rows: list[dict] = []
+    for item in payload["items"]:
+        name = item["device_name"]
+        finding = findings.get(name) or {}
+        cells: dict = {}
+        put(cells, "测温时间", group_result.get("occurred_at"))
+        put(cells, "测温性质", payload.get("test_kind"))
+        put(cells, "环境温度(℃)", payload.get("env_temp"))
+        put(cells, "负荷电流(A)", payload.get("load_current"))
+        put(cells, "测点序号", item["spot_no"])
+        put(cells, "设备名称", name)
+        put(cells, "测点部位", item.get("spot"))
+        put(cells, "致热类型", item.get("heat_type"))
+        put(cells, "实测温度(℃)", item["measured_temp"])
+        put(cells, "相间温差(K)", item.get("phase_temp_diff"))
+        put(cells, "相对温差δt(%)", item.get("delta_t"))
+        put(cells, "引擎判级", _engine_grade(finding.get("grade")))
+        put(cells, "人工判级", item.get("defect_grade"))
+        put(cells, "仪器编号", item.get("instrument_id"))
+        if item is hottest.get(name) and finding.get("detail"):
+            put(cells, "判定说明", finding["detail"])
+        put(cells, "账本UID", record["record_uid"])
+        put(cells, "账本Rev", record["rev"])
+        put(cells, "账本状态", _LIFECYCLE_LABELS.get(record["lifecycle"], record["lifecycle"]))
+        rows.append(cells)
+    return rows
+
+
+def _engine_grade(short: str | None) -> str | None:
+    return {
+        "正常": "正常",
+        "一般": "一般缺陷",
+        "严重": "严重缺陷",
+        "危急": "危急缺陷",
+    }.get(short or "")
+
+
+def dispatch_thermo(group_result: dict, *, settings, ledger=None, dry_run: bool = False) -> dict:
+    """写《设备测温记录》。表还没建则跳过，不把账本当成失败。"""
+    table = getattr(settings, "thermo_table", None)
+    if not table:
+        return {"skipped": True, "reason": "还没有测温表"}
+    rows = compose_thermo_rows(group_result, field_ids=table.get("field_ids") or {})
+    if dry_run:
+        return {"dry_run": True, "rows": len(rows), "sample": rows[:2]}
+    result = write_rows(table["base_id"], table["table_id"], rows)
+    if ledger is not None:
+        ledger.audit("core", "thermo_projection", table["table_id"],
+                     {"rows": len(rows), "written": result.get("written")})
+    return result
+
+
 def dispatch(group_results: list[dict], *, settings, ledger=None,
              dry_run: bool = False, remark_tag: str | None = None) -> dict:
     """组装全部成功组的行并写表（dry_run 时只组装、不写）。"""

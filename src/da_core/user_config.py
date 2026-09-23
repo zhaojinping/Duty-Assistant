@@ -19,6 +19,30 @@ KIND_12V = "12V电池"
 ALLOWED_KINDS = (KIND_2V, KIND_12V)
 _STATION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$")
 
+THERMO_TABLE_FIELDS: tuple[tuple[str, str], ...] = (
+    ("测温时间", "text"),
+    ("测温性质", "text"),
+    ("环境温度(℃)", "number"),
+    ("负荷电流(A)", "number"),
+    ("测点序号", "number"),
+    ("设备名称", "text"),
+    ("测点部位", "text"),
+    ("致热类型", "text"),
+    ("实测温度(℃)", "number"),
+    ("相间温差(K)", "number"),
+    ("相对温差δt(%)", "number"),
+    ("引擎判级", "text"),
+    ("人工判级", "text"),
+    ("仪器编号", "text"),
+    ("判定说明", "text"),
+    ("账本UID", "text"),
+    ("账本Rev", "number"),
+    ("账本状态", "text"),
+)
+
+# 建表接口单次最多 15 列，其余列建表后再补。
+THERMO_TABLE_CREATE_LIMIT = 15
+
 TABLE_FIELDS: tuple[tuple[str, str], ...] = (
     ("电池组别", "text"),
     ("电池序号", "number"),
@@ -78,6 +102,11 @@ def validate_install(payload: dict) -> dict:
     if escalate_id == DEVELOPER_USER_ID:
         raise ConfigError("班长用了开发者的测试人员，请改成现场的人，或留空")
 
+    thermo_name = str(payload.get("thermo_assignee_name") or "").strip()
+    thermo_id = str(payload.get("thermo_assignee_id") or "").strip()
+    if thermo_id == DEVELOPER_USER_ID:
+        raise ConfigError("测温责任人用了开发者的测试人员，请改成现场的人，或留空")
+
     entry_url = check_https_url(str(payload.get("entry_url") or ""), label="录入网址")
     pull_url = str(payload.get("pull_url") or "").strip() or entry_url
     pull_url = check_https_url(pull_url, label="拉取地址")
@@ -127,6 +156,9 @@ def validate_install(payload: dict) -> dict:
         "table_id": str(payload.get("table_id") or "").strip(),
         "field_ids": dict(payload.get("field_ids") or {}),
         "ledger_url": str(payload.get("ledger_url") or "").strip(),
+        "thermo_assignee_name": thermo_name,
+        "thermo_assignee_id": thermo_id,
+        "thermo_table": payload.get("thermo_table") if isinstance(payload.get("thermo_table"), dict) else None,
     }
 
 
@@ -174,4 +206,5 @@ def settings_from_config(data_dir: Path, payload: dict) -> Settings:
         group_cid=payload.get("group_cid") or "",
         entry_url=payload.get("entry_url") or "",
         ledger_url=payload.get("ledger_url") or "",
+        thermo_table=payload.get("thermo_table") if isinstance(payload.get("thermo_table"), dict) else None,
     )
