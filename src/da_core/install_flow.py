@@ -13,6 +13,8 @@ from da_core.paths import config_path, ledger_path, on_sync_disk, writer_path
 from da_core.user_config import (
     DEVELOPER_BASE_ID,
     TABLE_FIELDS,
+    THERMO_TABLE_CREATE_LIMIT,
+    THERMO_TABLE_FIELDS,
     ConfigError,
     group_kinds_from,
     load_config,
@@ -23,6 +25,7 @@ from da_core.user_config import (
 
 BASE_NAME = "蓄电池电压测量记录"
 TABLE_NAME = "电压测量记录"
+THERMO_TABLE_NAME = "设备测温记录"
 
 
 def next_anchor_date(today: _dt.date, anchor_day: int) -> str:
@@ -116,15 +119,19 @@ def apply_dependencies(steps: list[dict], *, runner) -> list[dict]:
     return results
 
 
-def table_field_specs() -> list[dict]:
+def field_specs(fields: tuple[tuple[str, str], ...]) -> list[dict]:
     specs = []
-    for name, kind in TABLE_FIELDS:
+    for name, kind in fields:
         item: dict = {"fieldName": name, "type": kind}
         if kind == "number":
-            formatter = "INT" if name in {"电池序号", "账本Rev"} else "FLOAT_2"
+            formatter = "INT" if name in {"电池序号", "测点序号", "账本Rev"} else "FLOAT_2"
             item["config"] = {"formatter": formatter}
         specs.append(item)
     return specs
+
+
+def table_field_specs() -> list[dict]:
+    return field_specs(TABLE_FIELDS)
 
 
 def ledger_doc_url(base_id: str, table_id: str) -> str:
@@ -152,8 +159,8 @@ def _find_str(obj, keys: tuple[str, ...]) -> str:
     return ""
 
 
-def _field_map(obj) -> dict[str, str]:
-    wanted = {item[0] for item in TABLE_FIELDS}
+def _field_map(obj, fields: tuple[tuple[str, str], ...] = TABLE_FIELDS) -> dict[str, str]:
+    wanted = {item[0] for item in fields}
     found: dict[str, str] = {}
 
     def walk(node) -> None:
@@ -199,6 +206,47 @@ def create_user_table(*, runner) -> dict:
     missing = [name for name, _kind in TABLE_FIELDS if name not in field_ids]
     if not table_id or missing:
         raise ConfigError("表已建立，但有列没有编号：" + "、".join(missing or ["表编号"]))
+    return {
+        "base_id": base_id,
+        "table_id": table_id,
+        "field_ids": field_ids,
+        "ledger_url": ledger_doc_url(base_id, table_id),
+    }
+
+
+def create_thermo_table(*, base_id: str, runner) -> dict:
+    """在已有电压表同一个 Base 里新建《设备测温记录》。超过 15 列的部分另一次补列。"""
+    if not base_id or base_id == DEVELOPER_BASE_ID:
+        raise ConfigError("先建用户自己的电压表，再在同一张表里加测温表")
+    first = THERMO_TABLE_FIELDS[:THERMO_TABLE_CREATE_LIMIT]
+    rest = THERMO_TABLE_FIELDS[THERMO_TABLE_CREATE_LIMIT:]
+    rc, out, err = runner([
+        "aitable", "table", "create", "--base-id", base_id, "--name", THERMO_TABLE_NAME,
+        "--fields", json.dumps(field_specs(first), ensure_ascii=False),
+        "--yes", "--format", "json"])
+    if rc != 0:
+        raise ConfigError(f"新建测温表失败：{(err or out).strip()[:300]}")
+    created = json.loads(out)
+    table_id = _find_str(created, ("tableId", "table_id"))
+    field_ids = _field_map(created, THERMO_TABLE_FIELDS)
+    if rest and table_id:
+        rc, extra, err = runner([
+            "aitable", "field", "create", "--base-id", base_id, "--table-id", table_id,
+            "--fields", json.dumps(field_specs(rest), ensure_ascii=False),
+            "--yes", "--format", "json"])
+        if rc != 0:
+            raise ConfigError(f"测温表补列失败：{(err or extra).strip()[:300]}")
+        if extra.strip():
+            field_ids.update(_field_map(json.loads(extra), THERMO_TABLE_FIELDS))
+    if len(field_ids) < len(THERMO_TABLE_FIELDS) and table_id:
+        rc, got, err = runner([
+            "aitable", "field", "get", "--base-id", base_id, "--table-id", table_id,
+            "--format", "json"])
+        if rc == 0 and got.strip():
+            field_ids.update(_field_map(json.loads(got), THERMO_TABLE_FIELDS))
+    missing = [name for name, _kind in THERMO_TABLE_FIELDS if name not in field_ids]
+    if not table_id or missing:
+        raise ConfigError("测温表已建立，但有列没有编号：" + "、".join(missing or ["表编号"]))
     return {
         "base_id": base_id,
         "table_id": table_id,
@@ -321,6 +369,10 @@ def init_install(payload: dict, *, data_dir: Path, hostname: str, confirm: bool)
         "pull_url": normalized["pull_url"],
         "groups": normalized["groups"],
         "cycle": f"每月 {normalized['anchor_day']} 日，起算 {normalized['baseline']}",
+        "thermo_cycle": "设备测温每月 10 日；7–9 月改为上次测温后 7 天",
+        "thermo_assignee": (
+            normalized.get("thermo_assignee_name") or normalized.get("thermo_assignee_id")
+            or "不填，沿用电压待办人"),
         "thresholds": "2V 为 1.85–2.35，12V 为 11.85–13.80",
         "hostname": hostname,
     }
@@ -352,6 +404,13 @@ def init_install(payload: dict, *, data_dir: Path, hostname: str, confirm: bool)
             normalized["escalate_id"] or normalized["escalate_name"],
             updated_by="install")
     ledger.set_param("group_intake", {"group": normalized["group_name"]}, updated_by="install")
+    ledger.set_thermo_cycle(
+        anchor_day=10,
+        baseline=next_anchor_date(_dt.date.today(), 10),
+        updated_by="install")
+    thermo_assignee = normalized.get("thermo_assignee_id") or normalized.get("thermo_assignee_name")
+    if thermo_assignee:
+        ledger.set_contact(station_id, "thermo_assignee", thermo_assignee, updated_by="install")
     ledger.close()
     plan["needs_confirm"] = False
     plan["config"] = str(config_path(data_dir))

@@ -157,6 +157,9 @@ def fetch_recent_messages(group: str, *, runner=None, limit: int = 50) -> list[d
 
 
 def _receipt_text(summary: dict) -> str:
+    if summary.get("kind") == "thermography":
+        from da_core.thermo import receipt_text
+        return receipt_text(summary)
     if summary.get("replayed"):
         return ""  # 重放不回执（防刷屏）
     if not summary.get("ok"):
@@ -208,15 +211,63 @@ def poll_group(ledger, settings, *, actor: str = "群消息", runner=None,
     if group == DEFAULT_GROUP:
         raise RuntimeError("生产群不能使用联调群「APM测试」")
     last_time = cursor.get("last_time")
+    from da_core.thermo import HEADER as THERMO_HEADER
+    from da_core.thermo import following_images, parse_thermo_message, sender_of, submit_thermography
 
     messages = fetch_recent_messages(group, runner=runner, limit=limit)
     processed: list[dict] = []
-    for message in messages:
+    index = 0
+    while index < len(messages):
+        message = messages[index]
         created = message.get("createTime") or ""
         if last_time and created <= last_time:
+            index += 1
             continue
         text = message.get("text") or ""
+        if THERMO_HEADER in text:
+            message_id = message.get("messageId") or ""
+            image_refs, end = following_images(messages, index + 1, sender_of(message))
+            if dry_run:
+                try:
+                    parsed = parse_thermo_message(text)
+                    processed.append({
+                        "messageId": message_id, "would_submit": True,
+                        "groups": ["设备测温"], "spots": len(parsed["spots"]),
+                        "images": len(image_refs)})
+                except IntakeError as exc:
+                    processed.append({"messageId": message_id, "error": str(exc)})
+                index = max(end, index + 1)
+                continue
+            try:
+                parsed = parse_thermo_message(text)
+                parsed["operator"] = actor
+                parsed["client_submission_id"] = f"dingtalk:{message_id}"
+                parsed["image_refs"] = image_refs
+                summary = submit_thermography(
+                    parsed, settings=settings, ledger=ledger, dispatch=dispatch, runner=runner)
+            except IntakeError as exc:
+                processed.append({"messageId": message_id, "ok": False, "error": str(exc)})
+                last = messages[end - 1] if end > index else message
+                ledger.set_param(CURSOR_PARAM, {
+                    "group": group, "last_time": last.get("createTime") or created,
+                    "last_msg": last.get("messageId") or message_id}, updated_by="poller")
+                index = max(end, index + 1)
+                continue
+            reply_text = _receipt_text(summary)
+            if reply and reply_text:
+                from da_core.outbox import send_group
+                send_group(group, reply_text, runner=runner)
+            processed.append({"messageId": message_id, "ok": summary.get("ok"),
+                              "replayed": summary.get("replayed", False),
+                              "reply": reply_text or None})
+            last = messages[end - 1] if end > index else message
+            ledger.set_param(CURSOR_PARAM, {
+                "group": group, "last_time": last.get("createTime") or created,
+                "last_msg": last.get("messageId") or message_id}, updated_by="poller")
+            index = max(end, index + 1)
+            continue
         if HEADER not in text:
+            index += 1
             continue
         message_id = message.get("messageId") or ""
 
@@ -228,6 +279,7 @@ def poll_group(ledger, settings, *, actor: str = "群消息", runner=None,
                     "groups": [g.get("group") for g in parsed["groups"]]})
             except IntakeError as exc:
                 processed.append({"messageId": message_id, "error": str(exc)})
+            index += 1
             continue
 
         try:
@@ -240,6 +292,7 @@ def poll_group(ledger, settings, *, actor: str = "群消息", runner=None,
             ledger.set_param(CURSOR_PARAM,
                              {"group": group, "last_time": created,
                               "last_msg": message_id}, updated_by="poller")
+            index += 1
             continue
 
         reply_text = _receipt_text(summary)
@@ -252,6 +305,7 @@ def poll_group(ledger, settings, *, actor: str = "群消息", runner=None,
         ledger.set_param(CURSOR_PARAM,
                          {"group": group, "last_time": created,
                           "last_msg": message_id}, updated_by="poller")
+        index += 1
 
     return {"group": group, "scanned": len(messages),
             "processed": processed,

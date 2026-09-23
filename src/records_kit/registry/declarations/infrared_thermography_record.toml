@@ -1,7 +1,13 @@
-# 设备测温（红外检测）记录簿声明（M2 转正批4 · item_list）
+# 设备测温（红外检测）记录簿声明（M2 转正批4 · item_list · 判定能力已补齐）
 # 依据：docs/dsl-gap-list.md 定稿 §5（字段表）+ §13 拍板（F1：δt% 人工报数起步）
-# 说明：δt% 人工报数（F1 拍板）；δt/温升限值与分级阈值待现场（§14）→ 规则段留 TODO；
-#       require_attachment（GAP-H5 条目附件绑定）待启用——机制=attachments_ref 可选 item_key，见 docs/shell-integration-guide.md 附录 C
+# 口径（已定）：
+#   - 分级走 T2 算子 thermal_grade（DL/T 664 电流致热型通用判据）：按 device_name 分组，
+#     组内最高温=热点、最低温=基准相，δt=(hot−normal)/(hot−env)×100；阈值以 expr 具名参数给出，
+#     壳层按部署配置覆盖 expr（参数名固定：group/env/general_diff/severe_temp/severe_delta/critical_temp/critical_delta）；
+#   - 致热类型为电压/设备/环境致热的热点不分级（skipped，以人工判定为准）；
+#   - 每测点必附红外图：items.spot 的 require_attachment="photo"，附件以 attachments_ref[].item_key 绑定测点
+#     （GAP-H5 落地）；缺图按 meta.attachment_missing="warn" 出规则级提醒，不拒单；
+#   - 例行测温周期 periodic:30d（探针出口，§7.3 豁免注）；cycle_baseline 起算日待现场。
 # 格式基准：docs/design.md §7.2（蓄电池示例）
 
 [meta]
@@ -12,9 +18,10 @@ layout = "item_list"                # 逐条测量：一行 = 一测点，一次
 dedupe_key = ["station", "occurred_day", "test_kind"]   # test_kind 区分例行/加强测温
 link_types = []
 extra = "reject"
-signature_slots = ["记录人"]
+signature_slots = []                # 免签类型（同蓄电池）：零签认 confirm，提交后壳层自动定稿
 action_codes = ["REPORT_DEFECT", "REMEASURE_SPOT", "ARRANGE_THERMOGRAPHY"]
 escalate_after = 3
+attachment_missing = "warn"         # 缺必附附件：warn=规则级提醒（rules 末尾 attachment_photo 条目）；缺省 reject=记录级拒绝
 
 [[fields]]
 key = "test_kind"
@@ -28,7 +35,7 @@ key = "env_temp"
 name = "环境温度"
 type = "number"
 unit = "℃"
-required = true                     # δt 公式的 T0（GAP-F2 关联）
+required = true                     # δt 公式的 T0（thermal_grade env=）
 
 [[fields]]
 key = "load_current"
@@ -52,28 +59,28 @@ required = true
 key = "device_name"
 name = "设备名称"
 type = "text"
-required = true
+required = true                     # thermal_grade 分组键：同设备各相测点归一组
 
 [[items.fields]]
 key = "spot"
 name = "测点部位"
 type = "text"
 required = true
-# require_attachment = "photo"      # GAP-H5：每测点必附红外图——待启用（机制=attachments_ref 可选 item_key 绑定，见 docs/shell-integration-guide.md 附录 C；启用随现场接口定义）
+require_attachment = "photo"        # 每测点必附红外图：attachments_ref 以 item_key=spot_no 绑定
 
 [[items.fields]]
 key = "measured_temp"
 name = "实测温度"
 type = "number"
 unit = "℃"
-required = true                     # 上下限限值待现场规程（§14）
+required = true
 
 [[items.fields]]
 key = "phase_temp_diff"
 name = "相间温差"
 type = "number"
 unit = "K"
-required = false                    # GAP-F2：需"条目间选基准相"语义，非简单 diff:a,b
+required = false                    # 人工报数；引擎温差以组内热点−基准相另算（thermal_grade）
 
 [[items.fields]]
 key = "delta_t"
@@ -82,13 +89,20 @@ type = "number"
 unit = "%"
 min = 0.0
 max = 100.0
-required = false                    # F1 已拍板：人工报数起步（§13）；派生字段机制列 M2 扩展
+required = false                    # F1 已拍板：人工报数起步（§13）；引擎 δt 由 thermal_grade 另算
+
+[[items.fields]]
+key = "heat_type"
+name = "致热类型"
+type = "enum"
+options = ["电流致热", "电压致热", "设备致热", "环境致热"]
+required = false                    # 空或电流致热 → 引擎分级；其余类型 skipped，以人工判定为准
 
 [[items.fields]]
 key = "defect_grade"
 name = "缺陷判定"
 type = "enum"
-options = ["正常", "一般缺陷", "严重缺陷", "危急缺陷"]   # F3 建议四级；阈值来源待现场（§14）
+options = ["正常", "一般缺陷", "严重缺陷", "危急缺陷"]   # 人工四级判定；低于引擎判定时 detail 追加提示
 required = false
 
 [[items.fields]]
@@ -97,19 +111,29 @@ name = "仪器编号"
 type = "text"
 required = true
 
-# ---- 规则段（TODO：待 M1 引擎接口冻结后补）----
-# TODO rules:
-#   - id: temp_rise
-#     kind: limit / tier: 2
-#     expr: diff:measured_temp,env_temp,le:N      # 温升=实测−环境，N 待现场
-#   - id: delta_t_check
-#     kind: limit / tier: 1
-#     expr: band:0,δt上限                         # 人工报数值带；分级阈值 DL/T 664 表 or 现场规程（GAP-F3）
-#     action: REPORT_DEFECT
-#   - id: defect_grade_check
-#     kind: (待定)                                # 分级与 δt/温升的一致性核对
-# ---- 周期段（TODO）----
-# TODO cycle:
-#   - periodic:Nd                                # 定期测温；N 待现场（制度汇编无周期数值条款）
-#     cycle_baseline = ?                         # 待现场（§12）
-#   - 加强测温触发（过负荷/高温/新投）= when 日历/比较窗口 → GAP-C3（弱需求，随 M0 扩展评估）
+# ---- 规则段 ----
+
+[[rules]]
+id = "thermal_grade"
+kind = "limit"
+tier = 2                            # 表内派生：同设备条目间热点/基准相 + 记录级环境温度
+target = "items.measured_temp"
+expr = "thermal_grade:group=device_name,env=env_temp,general_diff=15,severe_temp=80,severe_delta=80,critical_temp=110,critical_delta=95"
+level = "alarm"                     # entry.level 按等级覆盖：危急/严重=alarm，一般=warn
+action = "REPORT_DEFECT"
+
+[[rules]]
+id = "defect_reported"
+kind = "condition"
+tier = 1
+when = { "items.defect_grade" = "not_in:正常" }   # 人工判为非正常即提醒
+level = "warn"
+action = "REPORT_DEFECT"
+
+[[rules]]
+id = "cycle_regular"
+kind = "cycle"
+tier = 1                            # 固定 1：周期规则不进流水线，唯一出口是探针
+expr = "periodic:30d"
+when = { test_kind = "例行" }
+# cycle_baseline：missing 判定起算日，待现场规程核对（§12）

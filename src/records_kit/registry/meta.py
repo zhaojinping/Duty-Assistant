@@ -11,6 +11,7 @@ from __future__ import annotations
 from records_kit.errors import CODES  # noqa: F401  (错误码表是同一权威来源)
 from records_kit.registry.declaration import (
     ATTACHMENT_KINDS,
+    ATTACHMENT_MISSING_MODES,
     EXTRA_MODES,
     FIELD_TYPES,
     LAYOUTS,
@@ -22,6 +23,8 @@ from records_kit.registry.declaration import (
     RULE_LEVELS,
     SUPPORTED_TIERS,
     T3_OPS,
+    THERMAL_GRADE_NUMERIC_PARAMS,
+    THERMAL_GRADE_PARAMS,
     TRI_BOOL_OPTIONS,
     WHEN_OPS,
     WHEN_RESERVED_OPS,
@@ -42,7 +45,7 @@ from records_kit.util import AGG_WHITELIST, PERIOD_KINDS, TimeTextError, period_
 # dedupe_key 允许的信封派生伪键（§7.2 样例：station / occurred_day）
 DERIVED_DEDUPE_KEYS = ("station", "occurred_day", "occurred_at")
 _NUMERIC_OPS = ("band", "gt", "gte", "lt", "lte")
-_DERIVED_OPS = ("ratio", "deviation", "diff", "date_diff")
+_DERIVED_OPS = ("ratio", "deviation", "diff", "date_diff", "thermal_grade")
 _DEVIATION_BASES = ("mean", "min", "max", "last")
 _COMPARATORS = ("ge", "le")
 
@@ -359,10 +362,50 @@ def _check_rule(
         comparator, _, bound = args[2].partition(":")
         if comparator not in _COMPARATORS or not bound.endswith("d") or _as_number(bound[:-1]) is None:
             problems.add(f"{label}.expr date_diff 比较项不合法：{args[2]!r}")
+    elif op == "thermal_grade":
+        _check_thermal_grade(declaration, rule, scope, spec, args, problems, label)
 
     action = rule.action
     if action is not None and action not in declaration.action_codes:
         problems.add(f"{label}.action 不在声明的 action_codes 内：{action}")
+
+
+def _check_thermal_grade(declaration, rule, scope, spec, args, problems: _Problems, label: str) -> None:
+    """测温分级算子（T2）：target 为 items 的 number 字段；七个具名参数缺一不可、名称精确。
+
+    ``group`` 须为 items 字段（分组键，通常 device_name）；``env`` 须为顶层 number 字段
+    （环境温度 T0）；五个阈值必须是数值。
+    """
+    if rule.tier != 2:
+        problems.add(f"{label}：thermal_grade 只允许 tier=2（表内条目间派生）")
+    if scope != "items" or spec.kind != "number":
+        problems.add(f"{label}.target thermal_grade 必须指向 items 的 number 字段：{rule.target}")
+    positional, kv = parse_kv(args)
+    if positional:
+        problems.add(f"{label}.expr thermal_grade 只接受具名参数，多出位置参数：{positional}")
+    for name in THERMAL_GRADE_PARAMS:
+        if name not in kv:
+            problems.add(f"{label}.expr thermal_grade 缺参数：{name}")
+    for name in kv:
+        if name not in THERMAL_GRADE_PARAMS:
+            problems.add(f"{label}.expr thermal_grade 未知参数：{name}")
+    if "group" in kv:
+        group = resolve_path(declaration, _items_path(declaration, kv["group"]))
+        if group is None or group[0] != "items" or group[1] is None:
+            problems.add(f"{label}.expr thermal_grade 的 group 必须是 items 字段：{kv['group']}")
+    if "env" in kv:
+        env = resolve_path(declaration, kv["env"])
+        if env is None or env[0] != "top" or env[1] is None or env[1].kind != "number":
+            problems.add(f"{label}.expr thermal_grade 的 env 必须是顶层 number 字段：{kv['env']}")
+    for name in THERMAL_GRADE_NUMERIC_PARAMS:
+        if name in kv and _as_number(kv[name]) is None:
+            problems.add(f"{label}.expr thermal_grade 的 {name} 必须是数值：{kv[name]!r}")
+
+
+def _items_path(declaration, name: str) -> str:
+    """thermal_grade 的 ``group=`` 既接受 ``device_name`` 也接受 ``items.device_name``。"""
+    prefix = declaration.items_key + "."
+    return name if name.startswith(prefix) else prefix + name
 
 
 def _check_t3_rule(declaration, rule, op, args, problems, label) -> None:
@@ -661,6 +704,10 @@ def validate_declaration(raw: object, source: str = "<declaration>") -> Declarat
     if extra not in EXTRA_MODES:
         problems.add(f"meta.extra 必须是 {'/'.join(EXTRA_MODES)} 之一")
         extra = "reject"
+    attachment_missing = meta.get("attachment_missing", "reject")
+    if attachment_missing not in ATTACHMENT_MISSING_MODES:
+        problems.add(f"meta.attachment_missing 必须是 {'/'.join(ATTACHMENT_MISSING_MODES)} 之一")
+        attachment_missing = "reject"
 
     raw_dedupe = meta.get("dedupe_key")
     if not isinstance(raw_dedupe, list) or not raw_dedupe or not all(isinstance(k, str) for k in raw_dedupe):
@@ -717,6 +764,7 @@ def validate_declaration(raw: object, source: str = "<declaration>") -> Declarat
         rules=(),
         trends=(),
         source=source,
+        attachment_missing=attachment_missing,
     )
     rules = _rules(raw, problems, probe)
     final = Declaration(
@@ -735,6 +783,7 @@ def validate_declaration(raw: object, source: str = "<declaration>") -> Declarat
         rules=rules,
         trends=(),
         source=source,
+        attachment_missing=attachment_missing,
     )
     trends = _trends(final, raw.get("trend"), problems)
     problems.raise_if_any(source)
@@ -754,4 +803,5 @@ def validate_declaration(raw: object, source: str = "<declaration>") -> Declarat
         rules=rules,
         trends=trends,
         source=source,
+        attachment_missing=final.attachment_missing,
     )

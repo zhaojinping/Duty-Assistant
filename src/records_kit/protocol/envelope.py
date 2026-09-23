@@ -122,5 +122,11 @@ def check_envelope(envelope: object) -> None:
         value = envelope.get(name)
         if value is not None and not isinstance(value, list):
             raise reject(name, E_TYPE, f"{name} 必须是数组")
+    for index, entry in enumerate(envelope.get("attachments_ref") or []):
+        # 可选 item_key：绑定条目（字符串或数字），其余键由 Schema/引擎按声明判定
+        if isinstance(entry, dict) and "item_key" in entry:
+            item_key = entry["item_key"]
+            if isinstance(item_key, bool) or not isinstance(item_key, (str, int, float)):
+                raise reject(f"attachments_ref[{index}].item_key", E_TYPE, "item_key 必须是字符串或数字")
     if envelope.get("ledger_view") is not None and not isinstance(envelope["ledger_view"], dict):
         raise reject("ledger_view", E_TYPE, "ledger_view 必须是对象")

@@ -294,7 +294,7 @@ drop_warn = 0.10
 | surge_arrester_action_record | 避雷器动作记录簿 | flat | 记录人 | 非雷雨天气动作→warn（T1 条件 `non_storm_action`：when 值侧前缀）；计数器倒退→warn（T3 `counter_monotonic`，键=相别+安装位置） |
 | grounding_wire_record | 接地线装拆记录簿 | flat（修订A：一行一动作） | 操作人、监护人 | 装拆配对（T3, pairing 键=接地线编号，含重复占用）；拆除超时（T3：link 工作票跨记录 date_diff）；装-拆间隔（T3 跨记录 date_diff，修订A：不再走条目内 T2） |
 | two_ticket_ledger | 两票登记台账 | flat（修订B：一行=一票） | 许可人、签发人 | 编号连续性（T3, continuity：按票种分组、复位周期 工作票按月/操作票按年——E4；从 ledger_view 行 fields 取值） |
-| infrared_thermography_record | 设备测温（红外）记录簿 | item_list | 记录人 | 温升/温差等级（**T2**, diff）；测点必附红外图（require_attachment） |
+| infrared_thermography_record | 设备测温（红外）记录簿 | item_list | 免签 | 电流致热分级（**T2**, thermal_grade）；缺红外图提醒不拒单 |
 | insulation_test_record | 绝缘测试记录簿 | flat | 试验人 | 吸收比带（T2, ratio）；阻值下限（T1）；周期（探针执行，§7.3 豁免注） |
 | battery_voltage_test | 蓄电池电压测试记录簿 | item_list | 测试人 | 电压带（T1）；落后偏差（T2）；周期（探针执行，§7.3 豁免注） |
 | transformer_core_clamp_current_record | 主变铁芯/夹件接地电流测试记录簿 | flat | 测试人 | 电流限值（T1）；增长趋势（trend） |

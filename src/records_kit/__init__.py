@@ -128,9 +128,12 @@ def _dispatch(envelope: dict, registry: Registry, scope: dict) -> dict:
     baseline_rows = views.baselines(envelope)
     views.alarm_history(envelope)
 
+    missing_attachments: list[dict] = []
     if operation in ("create", "correct"):
         payload = validate_engine.validate_payload(declaration, envelope["payload"])
-        validate_engine.require_attachments(declaration, payload, envelope)
+        missing_attachments = validate_engine.missing_attachments(declaration, payload, envelope)
+        if missing_attachments and declaration.attachment_missing == "reject":
+            raise validate_engine.attachment_issue(missing_attachments)
         links = validate_engine.validate_links(declaration, envelope, ledger_view["linked_records"])
     else:
         links = []
@@ -156,7 +159,11 @@ def _dispatch(envelope: dict, registry: Registry, scope: dict) -> dict:
     alarm_state = alarm_engine.evaluate_alarm(
         declaration, envelope["station"]["station_id"], declaration.record_type, report, envelope
     )
-    return _ok(scope, life.record, report.entries, trend_entries, report.actions, alarm_state)
+    rules_entries = list(report.entries)
+    if missing_attachments:
+        # attachment_missing="warn"：不拒单，在 rules 末尾追加一条 warn 级提醒（不进告警候选）
+        rules_entries.extend(validate_engine.attachment_warnings(missing_attachments))
+    return _ok(scope, life.record, rules_entries, trend_entries, report.actions, alarm_state)
 
 
 def _cycle_probe(envelope: dict, registry: Registry, scope: dict) -> dict:

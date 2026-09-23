@@ -140,7 +140,11 @@
       "properties": {
         "kind": { "type": "string", "enum": ["photo", "file", "csv", "pdf"] },
         "ref": { "type": "string", "minLength": 1 },
-        "note": { "type": "string" }
+        "note": { "type": "string" },
+        "item_key": {
+          "type": ["string", "number"],
+          "description": "可选：绑定到条目容器某一条目的 key_field 值（如 spot_no）；条目级 require_attachment 按 str(item_key)==str(item[key_field]) 匹配"
+        }
       }
     },
     "confirmation": {

@@ -42,8 +42,10 @@ def run_once(settings, *, dry_run: bool = False, skip_reconcile: bool = False,
         snap_dir = settings.db_path.parent / "backups"
     else:
         snap_dir = snapshot_dir
+    from da_core.scheduler import ensure_thermo_baseline
     summary = {
         "snapshot": snapshot_ledger(ledger, snap_dir),
+        "thermo_baseline": ensure_thermo_baseline(ledger, settings),
         "synced": sync_tasks(ledger, settings),
         "escalation": run_escalation(ledger, settings, dry_run=dry_run,
                                      with_entry_card=True),

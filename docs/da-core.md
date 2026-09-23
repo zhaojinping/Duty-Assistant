@@ -71,6 +71,10 @@ uv run python scripts/da_daily.py --db <ledger.sqlite> \
   随卡携带候选参数集；按「到期周期」去重（`config_params.entry_card_last_due`）；
   卡片失败不阻断文字触达，提醒期内次日重试（daily 幂等框架）。
 
+## 设备测温
+
+与蓄电池共用群、拉取接口和钉钉 Base，另建表《设备测温记录》（18 列，建表 15 列后再补 3 列）。群文本标题「设备测温数据」；图片紧跟在同一条文本后面，按测点序号 1、2、3 绑定。分级阈值在 `thermo_thresholds`，周期在 `thermo_cycle`：平时下一个每月 10 日，7–9 月为上次完成 + 7 天，滚出 9 月回到 10 日。严重及以上发待办（`thermo_assignee`，没有则用电压待办人），危急再私聊 `reminder_escalate`。缺图不拒单。
+
 ## 群消息接入口（P3）
 
 - 拉取用户配置的生产群最近消息（每 5 分钟，`python -m da_core.cli watch`；异常才提醒）。
